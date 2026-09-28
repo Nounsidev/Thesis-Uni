@@ -12,7 +12,9 @@ public class QrCodeScanner : MonoBehaviour
     [SerializeField] private TextMeshProUGUI resultText;
 
     [Header("Scan Setting")]
+    [SerializeField] bool isAutoScan = false;
     [SerializeField] private float scanInterval = 0.25f;
+    [SerializeField] Button scanButton;
     private float scanTimer;
 
     private bool isCamAvailable;
@@ -23,19 +25,20 @@ public class QrCodeScanner : MonoBehaviour
     private void Start()
     {
         SetUpCamera();
+        scanButton.onClick.AddListener(ScanButton);
     }
 
     private void OnDisable()
     {
         if (isCamAvailable && cameraTexture != null && cameraTexture.isPlaying)
             cameraTexture.Stop();
+        scanButton.onClick.RemoveListener(ScanButton);
     }
 
     private void Update()
     {
+       
         if (!isCamAvailable || cameraTexture == null || !cameraTexture.isPlaying) return;
-
-
         //Debug.Log("Scanning");
         // Set aspect ratio ONCE as soon as hardware initializes real dimensions
         if (!isAspectSet && cameraTexture.width > 16)
@@ -44,10 +47,16 @@ public class QrCodeScanner : MonoBehaviour
             isAspectSet = true;
         }
 
+        if (!isAutoScan) return;
         scanTimer += Time.deltaTime;
         if (scanTimer < scanInterval) return;
 
         scanTimer = 0;
+        DecodeFrame();
+    }
+
+    private void ScanButton()
+    {
         DecodeFrame();
     }
 
@@ -121,6 +130,7 @@ public class QrCodeScanner : MonoBehaviour
                     resultText.text = result.Text;
                 }
             }
+            //else Debug.Log("Not getting any results");
         }
         catch (Exception e)
         {

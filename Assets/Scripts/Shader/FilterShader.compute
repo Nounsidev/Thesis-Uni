@@ -1,10 +1,19 @@
 #pragma kernel ApplyDistortions
 
 Texture2D<float4> InputTexture;
-SamplerState samplerInputTexture; // Explicitly declare sampler state for InputTexture
+SamplerState samplerInputTexture;
 RWTexture2D<float4> OutputTexture;
 
 float2 Resolution;
+
+// Feature Toggle Flags (1 = Enabled, 0 = Disabled)
+int EnableBarrel;
+int EnablePerspective;
+int EnableWaves;
+int EnableBlur;
+int EnableGlare;
+int EnableVignette;
+int EnableNoise;
 
 // Variant Settings
 float BarrelStrength;
@@ -31,66 +40,87 @@ void ApplyDistortions(uint3 id : SV_DispatchThreadID)
 
     float2 uv = id.xy / Resolution;
     float2 centeredUV = uv - 0.5;
+    float2 distortedUV = uv;
 
     // 1. Barrel Distortion
-    float r2 = dot(centeredUV, centeredUV);
-    float2 distortedUV = uv + centeredUV * (BarrelStrength * r2);
+    if (EnableBarrel != 0)
+    {
+        float r2 = dot(centeredUV, centeredUV);
+        distortedUV += centeredUV * (BarrelStrength * r2);
+    }
 
     // 2. Perspective Skew
-    distortedUV.x += (uv.y - 0.5) * PerspectiveAngle;
+    if (EnablePerspective != 0)
+    {
+        distortedUV.x += (uv.y - 0.5) * PerspectiveAngle;
+    }
 
     // 3. Paper Wrinkles / Waves
-    distortedUV.x += sin(uv.y * WaveFrequency) * WaveAmplitude;
-    distortedUV.y += cos(uv.x * WaveFrequency) * WaveAmplitude;
+    if (EnableWaves != 0)
+    {
+        distortedUV.x += sin(uv.y * WaveFrequency) * WaveAmplitude;
+        distortedUV.y += cos(uv.x * WaveFrequency) * WaveAmplitude;
+    }
 
     // Sample Base Texture using declared sampler
     float4 color = InputTexture.SampleLevel(samplerInputTexture, distortedUV, 0);
 
     // 4. Multiple Blur Spots Calculation
-    float totalBlur = 0.0;
-    for (int i = 0; i < BlurSpotCount; i++)
+    if (EnableBlur != 0 && BlurSpotCount > 0)
     {
-        float2 spotCenter = BlurSpots[i].xy;
-        float radius = BlurSpots[i].z;
-        float strength = BlurSpots[i].w;
-
-        float dist = distance(uv, spotCenter);
-        if (dist < radius)
+        float totalBlur = 0.0;
+        for (int i = 0; i < BlurSpotCount; i++)
         {
-            float factor = smoothstep(radius, 0.0, dist);
-            totalBlur += factor * strength;
+            float2 spotCenter = BlurSpots[i].xy;
+            float radius = BlurSpots[i].z;
+            float strength = BlurSpots[i].w;
+
+            float dist = distance(uv, spotCenter);
+            if (dist < radius)
+            {
+                float factor = smoothstep(radius, 0.0, dist);
+                totalBlur += factor * strength;
+            }
+        }
+
+        if (totalBlur > 0.01)
+        {
+            float2 offset = float2(totalBlur / Resolution.x, totalBlur / Resolution.y);
+            float4 blurredColor = (
+                InputTexture.SampleLevel(samplerInputTexture, distortedUV + float2(offset.x, 0), 0) +
+                InputTexture.SampleLevel(samplerInputTexture, distortedUV - float2(offset.x, 0), 0) +
+                InputTexture.SampleLevel(samplerInputTexture, distortedUV + float2(0, offset.y), 0) +
+                InputTexture.SampleLevel(samplerInputTexture, distortedUV - float2(0, offset.y), 0)
+            ) * 0.25;
+
+            color = lerp(color, blurredColor, saturate(totalBlur));
         }
     }
 
-    // Apply Defocus Blur Sample Offset based on totalBlur
-    if (totalBlur > 0.01)
-    {
-        float2 offset = float2(totalBlur / Resolution.x, totalBlur / Resolution.y);
-        float4 blurredColor = (
-            InputTexture.SampleLevel(samplerInputTexture, distortedUV + float2(offset.x, 0), 0) +
-            InputTexture.SampleLevel(samplerInputTexture, distortedUV - float2(offset.x, 0), 0) +
-            InputTexture.SampleLevel(samplerInputTexture, distortedUV + float2(0, offset.y), 0) +
-            InputTexture.SampleLevel(samplerInputTexture, distortedUV - float2(0, offset.y), 0)
-        ) * 0.25;
-
-        color = lerp(color, blurredColor, saturate(totalBlur));
-    }
-
     // 5. Specular Glare
-    float glareDist = distance(uv, GlareCenter);
-    if (glareDist < GlareRadius)
+    if (EnableGlare != 0)
     {
-        float glareFactor = smoothstep(GlareRadius, 0.0, glareDist);
-        color.rgb += glareFactor * GlareIntensity;
+        float glareDist = distance(uv, GlareCenter);
+        if (glareDist < GlareRadius)
+        {
+            float glareFactor = smoothstep(GlareRadius, 0.0, glareDist);
+            color.rgb += glareFactor * GlareIntensity;
+        }
     }
 
     // 6. Vignette
-    float vigDist = distance(uv, float2(0.5, 0.5));
-    color.rgb *= lerp(1.0, 1.0 - VignetteStrength, vigDist);
+    if (EnableVignette != 0)
+    {
+        float vigDist = distance(uv, float2(0.5, 0.5));
+        color.rgb *= lerp(1.0, 1.0 - VignetteStrength, vigDist);
+    }
 
     // 7. Pseudo Random Noise
-    float noise = (frac(sin(dot(uv, float2(12.9898, 78.233))) * 43758.5453) - 0.5) * NoiseIntensity;
-    color.rgb += noise;
+    if (EnableNoise != 0)
+    {
+        float noise = (frac(sin(dot(uv, float2(12.9898, 78.233))) * 43758.5453) - 0.5) * NoiseIntensity;
+        color.rgb += noise;
+    }
 
     OutputTexture[id.xy] = saturate(color);
 }

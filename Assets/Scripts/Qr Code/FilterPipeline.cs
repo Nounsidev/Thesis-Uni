@@ -21,6 +21,15 @@ public class FilterPipeline : EditorWindow
     [Header("GPU Pipeline")]
     [SerializeField] private ComputeShader distortionComputeShader;
 
+    [Header("Filter Toggles")]
+    [SerializeField] private bool enableBarrel = true;
+    [SerializeField] private bool enablePerspective = true;
+    [SerializeField] private bool enableWaves = true;
+    [SerializeField] private bool enableVignette = true;
+    [SerializeField] private bool enableNoise = true;
+    [SerializeField] private bool enableBlur = true;
+    [SerializeField] private bool enableGlare = true;
+
     [Header("Variant 1: Fisheye / Lens Barrel")]
     [SerializeField, Range(0f, 1f)] private float barrelChance = 0.3f;
     [SerializeField] private float minBarrelStrength = -0.2f;
@@ -60,6 +69,13 @@ public class FilterPipeline : EditorWindow
     [SerializeField] private float maxGlareIntensity = 0.8f;
     [SerializeField] private float minGlareRadius = 0.1f;
     [SerializeField] private float maxGlareRadius = 0.35f;
+
+    [Header("Variant 8: Resolution & Downsampling Filter")]
+    [SerializeField] private bool enableResolutionDegradation = true;
+    [SerializeField] private FilterMode downsampleFilterMode = FilterMode.Bilinear;
+    [SerializeField, Range(0f, 1f)] private float resolutionDegradeChance = 0.5f;
+    [SerializeField] private int minIntermediateResolution = 120;
+    [SerializeField] private int maxIntermediateResolution = 180;
 
     // =========================================================================
     // EDITOR WINDOW PREVIEW STATE
@@ -105,7 +121,6 @@ public class FilterPipeline : EditorWindow
     {
         scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
 
-        // PREVIEW BOX DRAWING (RESPONSIVE FLEXIBLE SPACING)
         DrawPreviewSection();
 
         EditorGUILayout.Space(15);
@@ -124,50 +139,89 @@ public class FilterPipeline : EditorWindow
 
         EditorGUILayout.Space(10);
         EditorGUILayout.LabelField("Variant 1: Fisheye / Lens Barrel", EditorStyles.boldLabel);
-        barrelChance = EditorGUILayout.Slider("Barrel Chance", barrelChance, 0f, 1f);
-        minBarrelStrength = EditorGUILayout.FloatField("Min Barrel Strength", minBarrelStrength);
-        maxBarrelStrength = EditorGUILayout.FloatField("Max Barrel Strength", maxBarrelStrength);
+        enableBarrel = EditorGUILayout.Toggle("Enable Barrel Distortion", enableBarrel);
+        if (enableBarrel)
+        {
+            barrelChance = EditorGUILayout.Slider("Barrel Chance", barrelChance, 0f, 1f);
+            minBarrelStrength = EditorGUILayout.FloatField("Min Barrel Strength", minBarrelStrength);
+            maxBarrelStrength = EditorGUILayout.FloatField("Max Barrel Strength", maxBarrelStrength);
+        }
 
         EditorGUILayout.Space(10);
         EditorGUILayout.LabelField("Variant 2: Perspective Skew", EditorStyles.boldLabel);
-        perspectiveChance = EditorGUILayout.Slider("Perspective Chance", perspectiveChance, 0f, 1f);
-        minPerspectiveAngle = EditorGUILayout.FloatField("Min Perspective Angle", minPerspectiveAngle);
-        maxPerspectiveAngle = EditorGUILayout.FloatField("Max Perspective Angle", maxPerspectiveAngle);
+        enablePerspective = EditorGUILayout.Toggle("Enable Perspective Skew", enablePerspective);
+        if (enablePerspective)
+        {
+            perspectiveChance = EditorGUILayout.Slider("Perspective Chance", perspectiveChance, 0f, 1f);
+            minPerspectiveAngle = EditorGUILayout.FloatField("Min Perspective Angle", minPerspectiveAngle);
+            maxPerspectiveAngle = EditorGUILayout.FloatField("Max Perspective Angle", maxPerspectiveAngle);
+        }
 
         EditorGUILayout.Space(10);
         EditorGUILayout.LabelField("Variant 3: Paper Wrinkles / Waves", EditorStyles.boldLabel);
-        waveChance = EditorGUILayout.Slider("Wave Chance", waveChance, 0f, 1f);
-        minWaveFrequency = EditorGUILayout.FloatField("Min Wave Frequency", minWaveFrequency);
-        maxWaveFrequency = EditorGUILayout.FloatField("Max Wave Frequency", maxWaveFrequency);
-        minWaveAmplitude = EditorGUILayout.FloatField("Min Wave Amplitude", minWaveAmplitude);
-        maxWaveAmplitude = EditorGUILayout.FloatField("Max Wave Amplitude", maxWaveAmplitude);
+        enableWaves = EditorGUILayout.Toggle("Enable Wrinkles / Waves", enableWaves);
+        if (enableWaves)
+        {
+            waveChance = EditorGUILayout.Slider("Wave Chance", waveChance, 0f, 1f);
+            minWaveFrequency = EditorGUILayout.FloatField("Min Wave Frequency", minWaveFrequency);
+            maxWaveFrequency = EditorGUILayout.FloatField("Max Wave Frequency", maxWaveFrequency);
+            minWaveAmplitude = EditorGUILayout.FloatField("Min Wave Amplitude", minWaveAmplitude);
+            maxWaveAmplitude = EditorGUILayout.FloatField("Max Wave Amplitude", maxWaveAmplitude);
+        }
 
         EditorGUILayout.Space(10);
         EditorGUILayout.LabelField("Variant 4: Lens Vignette", EditorStyles.boldLabel);
-        minVignette = EditorGUILayout.FloatField("Min Vignette", minVignette);
-        maxVignette = EditorGUILayout.FloatField("Max Vignette", maxVignette);
+        enableVignette = EditorGUILayout.Toggle("Enable Lens Vignette", enableVignette);
+        if (enableVignette)
+        {
+            minVignette = EditorGUILayout.FloatField("Min Vignette", minVignette);
+            maxVignette = EditorGUILayout.FloatField("Max Vignette", maxVignette);
+        }
 
         EditorGUILayout.Space(10);
         EditorGUILayout.LabelField("Variant 5: Sensor Noise", EditorStyles.boldLabel);
-        minNoise = EditorGUILayout.FloatField("Min Noise", minNoise);
-        maxNoise = EditorGUILayout.FloatField("Max Noise", maxNoise);
+        enableNoise = EditorGUILayout.Toggle("Enable Sensor Noise", enableNoise);
+        if (enableNoise)
+        {
+            minNoise = EditorGUILayout.FloatField("Min Noise", minNoise);
+            maxNoise = EditorGUILayout.FloatField("Max Noise", maxNoise);
+        }
 
         EditorGUILayout.Space(10);
         EditorGUILayout.LabelField("Variant 6: Multi-Spot Lens Defocus Blur", EditorStyles.boldLabel);
-        blurChance = EditorGUILayout.Slider("Blur Chance", blurChance, 0f, 1f);
-        maxBlurSpotCount = EditorGUILayout.IntSlider("Max Blur Spot Count", maxBlurSpotCount, 1, 16);
-        minBlurRadius = EditorGUILayout.FloatField("Min Blur Radius", minBlurRadius);
-        maxBlurRadius = EditorGUILayout.FloatField("Max Blur Radius", maxBlurRadius);
-        minBlurStrength = EditorGUILayout.FloatField("Min Blur Strength", minBlurStrength);
-        maxBlurStrength = EditorGUILayout.FloatField("Max Blur Strength", maxBlurStrength);
+        enableBlur = EditorGUILayout.Toggle("Enable Defocus Blur", enableBlur);
+        if (enableBlur)
+        {
+            blurChance = EditorGUILayout.Slider("Blur Chance", blurChance, 0f, 1f);
+            maxBlurSpotCount = EditorGUILayout.IntSlider("Max Blur Spot Count", maxBlurSpotCount, 1, 16);
+            minBlurRadius = EditorGUILayout.FloatField("Min Blur Radius", minBlurRadius);
+            maxBlurRadius = EditorGUILayout.FloatField("Max Blur Radius", maxBlurRadius);
+            minBlurStrength = EditorGUILayout.FloatField("Min Blur Strength", minBlurStrength);
+            maxBlurStrength = EditorGUILayout.FloatField("Max Blur Strength", maxBlurStrength);
+        }
 
         EditorGUILayout.Space(10);
         EditorGUILayout.LabelField("Variant 7: Specular Glare / Bright Spot", EditorStyles.boldLabel);
-        glareChance = EditorGUILayout.Slider("Glare Chance", glareChance, 0f, 1f);
-        minGlareIntensity = EditorGUILayout.FloatField("Min Glare Intensity", minGlareIntensity);
-        maxGlareIntensity = EditorGUILayout.FloatField("Max Glare Intensity", maxGlareIntensity);
-        minGlareRadius = EditorGUILayout.FloatField("Min Glare Radius", minGlareRadius);
-        maxGlareRadius = EditorGUILayout.FloatField("Max Glare Radius", maxGlareRadius);
+        enableGlare = EditorGUILayout.Toggle("Enable Specular Glare", enableGlare);
+        if (enableGlare)
+        {
+            glareChance = EditorGUILayout.Slider("Glare Chance", glareChance, 0f, 1f);
+            minGlareIntensity = EditorGUILayout.FloatField("Min Glare Intensity", minGlareIntensity);
+            maxGlareIntensity = EditorGUILayout.FloatField("Max Glare Intensity", maxGlareIntensity);
+            minGlareRadius = EditorGUILayout.FloatField("Min Glare Radius", minGlareRadius);
+            maxGlareRadius = EditorGUILayout.FloatField("Max Glare Radius", maxGlareRadius);
+        }
+
+        EditorGUILayout.Space(10);
+        EditorGUILayout.LabelField("Variant 8: Resolution & Downsampling Filter", EditorStyles.boldLabel);
+        downsampleFilterMode = (FilterMode)EditorGUILayout.EnumPopup("Downsample Filter Mode", downsampleFilterMode);
+        enableResolutionDegradation = EditorGUILayout.Toggle("Enable Resolution Degradation", enableResolutionDegradation);
+        if (enableResolutionDegradation)
+        {
+            resolutionDegradeChance = EditorGUILayout.Slider("Degradation Chance", resolutionDegradeChance, 0f, 1f);
+            minIntermediateResolution = EditorGUILayout.IntField("Min Intermediate Res (px)", minIntermediateResolution);
+            maxIntermediateResolution = EditorGUILayout.IntField("Max Intermediate Res (px)", maxIntermediateResolution);
+        }
 
         EditorGUILayout.Space(15);
 
@@ -193,8 +247,7 @@ public class FilterPipeline : EditorWindow
             GenerateTestPreviewTexture();
         }
 
-        // Dynamic Sizing based on Window Width
-        float currentWindowWidth = position.width - 20f; // Padding margin
+        float currentWindowWidth = position.width - 20f;
         float previewSize = Mathf.Clamp(currentWindowWidth * 0.38f, 140f, 260f);
         float spacing = Mathf.Max((currentWindowWidth - (previewSize * 2f)) / 3f, 10f);
 
@@ -203,17 +256,14 @@ public class FilterPipeline : EditorWindow
         Rect originalRect = new Rect(spacing, rawRect.y + 20f, previewSize, previewSize);
         Rect distortedRect = new Rect(spacing * 2f + previewSize, rawRect.y + 20f, previewSize, previewSize);
 
-        // Header Labels
         GUI.Label(new Rect(originalRect.x, rawRect.y, previewSize, 20f), "Original (Clean)", EditorStyles.centeredGreyMiniLabel);
         GUI.Label(new Rect(distortedRect.x, rawRect.y, previewSize, 20f), "Distorted (GPU)", EditorStyles.centeredGreyMiniLabel);
 
-        // Render Original Clean Texture
         if (testSourceTexture != null)
         {
             GUI.DrawTexture(originalRect, testSourceTexture, ScaleMode.ScaleToFit);
         }
 
-        // Render Distorted GPU Texture
         if (distortionComputeShader != null && testSourceTexture != null)
         {
             int kernel = distortionComputeShader.FindKernel("ApplyDistortions");
@@ -238,7 +288,6 @@ public class FilterPipeline : EditorWindow
 
             GUI.DrawTexture(distortedRect, previewRenderTexture, ScaleMode.ScaleToFit);
 
-            // Interactive Drag Glare Target on Distorted Image
             Event e = Event.current;
             if (distortedRect.Contains(e.mousePosition) && (e.type == EventType.MouseDown || e.type == EventType.MouseDrag))
             {
@@ -248,10 +297,9 @@ public class FilterPipeline : EditorWindow
                 Repaint();
             }
 
-            // Draw Overlay Handles over the Distorted Image
             if (showGizmos)
             {
-                if (previewGlareIntensity > 0.01f)
+                if (enableGlare && previewGlareIntensity > 0.01f)
                 {
                     Vector2 glareCrosshair = new Vector2(
                         distortedRect.x + (previewGlareCenter.x * distortedRect.width),
@@ -261,15 +309,18 @@ public class FilterPipeline : EditorWindow
                     Handles.DrawWireDisc(glareCrosshair, Vector3.forward, 8f);
                 }
 
-                Handles.color = new Color(0.2f, 0.8f, 1.0f, 0.8f);
-                for (int i = 0; i < previewBlurSpotCount; i++)
+                if (enableBlur)
                 {
-                    Vector2 spotPos = new Vector2(
-                        distortedRect.x + (previewBlurSpots[i].x * distortedRect.width),
-                        distortedRect.y + ((1.0f - previewBlurSpots[i].y) * distortedRect.height)
-                    );
-                    float radiusInPixels = previewBlurSpots[i].z * distortedRect.width;
-                    Handles.DrawWireDisc(spotPos, Vector3.forward, radiusInPixels);
+                    Handles.color = new Color(0.2f, 0.8f, 1.0f, 0.8f);
+                    for (int i = 0; i < previewBlurSpotCount; i++)
+                    {
+                        Vector2 spotPos = new Vector2(
+                            distortedRect.x + (previewBlurSpots[i].x * distortedRect.width),
+                            distortedRect.y + ((1.0f - previewBlurSpots[i].y) * distortedRect.height)
+                        );
+                        float radiusInPixels = previewBlurSpots[i].z * distortedRect.width;
+                        Handles.DrawWireDisc(spotPos, Vector3.forward, radiusInPixels);
+                    }
                 }
             }
         }
@@ -281,6 +332,7 @@ public class FilterPipeline : EditorWindow
 
         EditorGUILayout.Space(10);
 
+        // PREVIEW RANDOMIZATION CONTROLS
         EditorGUILayout.BeginHorizontal();
         if (GUILayout.Button("Randomize QR Code", GUILayout.Height(25)))
         {
@@ -293,21 +345,36 @@ public class FilterPipeline : EditorWindow
             Repaint();
         }
         EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.Space(4);
+
+        // RANDOMIZE BOTH BUTTON
+        if (GUILayout.Button("Randomize Both (QR + Filters)", GUILayout.Height(28)))
+        {
+            RandomizeBoth();
+        }
+    }
+
+    private void RandomizeBoth()
+    {
+        GenerateTestPreviewTexture();
+        RandomizePreviewFilterValues();
+        Repaint();
     }
 
     private void RandomizePreviewFilterValues()
     {
-        previewBarrel = (Random.value < barrelChance) ? Random.Range(minBarrelStrength, maxBarrelStrength) : 0f;
-        previewPerspective = (Random.value < perspectiveChance) ? Random.Range(minPerspectiveAngle, maxPerspectiveAngle) : 0f;
+        previewBarrel = (enableBarrel && Random.value < barrelChance) ? Random.Range(minBarrelStrength, maxBarrelStrength) : 0f;
+        previewPerspective = (enablePerspective && Random.value < perspectiveChance) ? Random.Range(minPerspectiveAngle, maxPerspectiveAngle) : 0f;
 
-        bool applyWave = Random.value < waveChance;
+        bool applyWave = enableWaves && (Random.value < waveChance);
         previewWaveFreq = applyWave ? Random.Range(minWaveFrequency, maxWaveFrequency) : 0f;
         previewWaveAmp = applyWave ? Random.Range(minWaveAmplitude, maxWaveAmplitude) : 0f;
 
-        previewVignette = Random.Range(minVignette, maxVignette);
-        previewNoise = Random.Range(minNoise, maxNoise);
+        previewVignette = enableVignette ? Random.Range(minVignette, maxVignette) : 0f;
+        previewNoise = enableNoise ? Random.Range(minNoise, maxNoise) : 0f;
 
-        bool applyBlur = (blurChance > 0f) && (Random.value < blurChance);
+        bool applyBlur = enableBlur && (blurChance > 0f) && (Random.value < blurChance);
         previewBlurSpotCount = applyBlur ? Random.Range(1, maxBlurSpotCount + 1) : 0;
 
         for (int i = 0; i < previewBlurSpotCount; i++)
@@ -319,7 +386,7 @@ public class FilterPipeline : EditorWindow
             previewBlurSpots[i] = new Vector4(px, py, radius, strength);
         }
 
-        bool applyGlare = (glareChance > 0f) && (Random.value < glareChance);
+        bool applyGlare = enableGlare && (glareChance > 0f) && (Random.value < glareChance);
         previewGlareIntensity = applyGlare ? Random.Range(minGlareIntensity, maxGlareIntensity) : 0f;
         previewGlareRadius = applyGlare ? Random.Range(minGlareRadius, maxGlareRadius) : 0f;
         previewGlareCenter = new Vector2(Random.Range(0.2f, 0.8f), Random.Range(0.2f, 0.8f));
@@ -398,17 +465,17 @@ public class FilterPipeline : EditorWindow
             hrTexture.SetPixels32(pixels);
             hrTexture.Apply();
 
-            float barrel = (Random.value < barrelChance) ? Random.Range(minBarrelStrength, maxBarrelStrength) : 0f;
-            float perspective = (Random.value < perspectiveChance) ? Random.Range(minPerspectiveAngle, maxPerspectiveAngle) : 0f;
+            float barrel = (enableBarrel && Random.value < barrelChance) ? Random.Range(minBarrelStrength, maxBarrelStrength) : 0f;
+            float perspective = (enablePerspective && Random.value < perspectiveChance) ? Random.Range(minPerspectiveAngle, maxPerspectiveAngle) : 0f;
 
-            bool applyWave = Random.value < waveChance;
+            bool applyWave = enableWaves && Random.value < waveChance;
             float waveFreq = applyWave ? Random.Range(minWaveFrequency, maxWaveFrequency) : 0f;
             float waveAmp = applyWave ? Random.Range(minWaveAmplitude, maxWaveAmplitude) : 0f;
 
-            float vignette = Random.Range(minVignette, maxVignette);
-            float noise = Random.Range(minNoise, maxNoise);
+            float vignette = enableVignette ? Random.Range(minVignette, maxVignette) : 0f;
+            float noise = enableNoise ? Random.Range(minNoise, maxNoise) : 0f;
 
-            bool applyBlur = Random.value < blurChance;
+            bool applyBlur = enableBlur && Random.value < blurChance;
             int spotCount = applyBlur ? Random.Range(1, maxBlurSpotCount + 1) : 0;
             Vector4[] blurSpots = new Vector4[16];
             for (int s = 0; s < spotCount; s++)
@@ -421,7 +488,7 @@ public class FilterPipeline : EditorWindow
                 );
             }
 
-            bool applyGlare = Random.value < glareChance;
+            bool applyGlare = enableGlare && Random.value < glareChance;
             float glareIntensity = applyGlare ? Random.Range(minGlareIntensity, maxGlareIntensity) : 0f;
             float glareRadius = applyGlare ? Random.Range(minGlareRadius, maxGlareRadius) : 0f;
             Vector2 glareCenter = new Vector2(Random.Range(0.2f, 0.8f), Random.Range(0.2f, 0.8f));
@@ -430,7 +497,13 @@ public class FilterPipeline : EditorWindow
                 hrTexture, kernel, barrel, perspective, waveFreq, waveAmp, vignette, noise, spotCount, blurSpots, glareIntensity, glareCenter, glareRadius
             );
 
-            Texture2D lrTexture = DownsampleToTexture2D(distortedRT, lowResSize);
+            int targetDownsampleRes = lowResSize;
+            if (enableResolutionDegradation && Random.value < resolutionDegradeChance)
+            {
+                targetDownsampleRes = Random.Range(minIntermediateResolution, maxIntermediateResolution);
+            }
+
+            Texture2D lrTexture = DownsampleToTexture2D(distortedRT, targetDownsampleRes, lowResSize, downsampleFilterMode);
 
             SaveTextureToPNG(hrTexture, Path.Combine(hrPath, $"qr_{i:D5}_HR.png"));
             SaveTextureToPNG(lrTexture, Path.Combine(lrPath, $"qr_{i:D5}_LR.png"));
@@ -461,6 +534,14 @@ public class FilterPipeline : EditorWindow
         distortionComputeShader.SetTexture(kernel, "OutputTexture", result);
         distortionComputeShader.SetVector("Resolution", new Vector2(w, h));
 
+        distortionComputeShader.SetInt("EnableBarrel", enableBarrel ? 1 : 0);
+        distortionComputeShader.SetInt("EnablePerspective", enablePerspective ? 1 : 0);
+        distortionComputeShader.SetInt("EnableWaves", enableWaves ? 1 : 0);
+        distortionComputeShader.SetInt("EnableVignette", enableVignette ? 1 : 0);
+        distortionComputeShader.SetInt("EnableNoise", enableNoise ? 1 : 0);
+        distortionComputeShader.SetInt("EnableBlur", enableBlur ? 1 : 0);
+        distortionComputeShader.SetInt("EnableGlare", enableGlare ? 1 : 0);
+
         distortionComputeShader.SetFloat("BarrelStrength", barrel);
         distortionComputeShader.SetFloat("PerspectiveAngle", perspective);
         distortionComputeShader.SetFloat("WaveFrequency", waveFreq);
@@ -485,20 +566,24 @@ public class FilterPipeline : EditorWindow
         return result;
     }
 
-    private Texture2D DownsampleToTexture2D(RenderTexture source, int targetSize)
+    private Texture2D DownsampleToTexture2D(RenderTexture source, int intermediateRes, int finalTargetSize, FilterMode filterMode)
     {
-        RenderTexture temp = RenderTexture.GetTemporary(targetSize, targetSize, 0, RenderTextureFormat.ARGB32);
-        temp.filterMode = FilterMode.Bilinear;
+        RenderTexture intermediate = RenderTexture.GetTemporary(intermediateRes, intermediateRes, 0, RenderTextureFormat.ARGB32);
+        intermediate.filterMode = filterMode;
+        Graphics.Blit(source, intermediate);
 
-        Graphics.Blit(source, temp);
+        RenderTexture finalRT = RenderTexture.GetTemporary(finalTargetSize, finalTargetSize, 0, RenderTextureFormat.ARGB32);
+        finalRT.filterMode = filterMode;
+        Graphics.Blit(intermediate, finalRT);
 
-        RenderTexture.active = temp;
-        Texture2D result = new Texture2D(targetSize, targetSize, TextureFormat.RGB24, false);
-        result.ReadPixels(new Rect(0, 0, targetSize, targetSize), 0, 0);
+        RenderTexture.active = finalRT;
+        Texture2D result = new Texture2D(finalTargetSize, finalTargetSize, TextureFormat.RGB24, false);
+        result.ReadPixels(new Rect(0, 0, finalTargetSize, finalTargetSize), 0, 0);
         result.Apply();
 
         RenderTexture.active = null;
-        RenderTexture.ReleaseTemporary(temp);
+        RenderTexture.ReleaseTemporary(intermediate);
+        RenderTexture.ReleaseTemporary(finalRT);
 
         return result;
     }

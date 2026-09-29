@@ -4,42 +4,45 @@ using UnityEngine.UI;
 public class UiHandler : MonoBehaviour
 {
     [SerializeField] GameObject[] panels;
-    [SerializeField] Button switchButton;
+    [SerializeField] Button[] switchButtons;
 
     private int currentPanelId;
 
     private void Start()
     {
-        switchButton.onClick.AddListener(SwitchButton);
+        for (int i = 0; i < panels.Length; i++)
+        {
+            int iCpy = i;
+            switchButtons[i].onClick.AddListener(()=>SwitchButton(iCpy));
+        }
 
-        FindActivePanel();
+        ResetActivePanel();
     }
 
     private void OnDisable()
     {
-        switchButton.onClick.RemoveListener(SwitchButton);
-    }
-
-    private void FindActivePanel()
-    {
         for (int i = 0; i < panels.Length; i++)
         {
-            if (panels[i].activeSelf)
-            { 
-                currentPanelId = i;
-                break;
-            }
+            int iCpy = i;
+            switchButtons[i].onClick.RemoveListener(() => SwitchButton(iCpy));
         }
     }
 
-    private void SwitchButton()
+    private void ResetActivePanel()
+    {
+        for (int i = 1; i < panels.Length; i++)
+        {
+            panels[i].SetActive(false);
+        }
+
+        panels[0].SetActive(true);
+    }
+
+    private void SwitchButton(int buttonId)
     {
         panels[currentPanelId].SetActive(false);
 
-        currentPanelId++;
-        if(currentPanelId >= panels.Length)
-            currentPanelId = 0;
-
+        currentPanelId = buttonId;
         panels[currentPanelId].SetActive(true);
     }
 }

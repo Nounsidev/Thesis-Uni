@@ -221,27 +221,62 @@ public class QrCodeScanner : MonoBehaviour
 
     private Result ProcessModelInference(Worker worker, RenderTexture lrRT, RenderTexture hrRT, Texture2D readbackTex, int inputRes, int outputRes)
     {
-        // 1. Crop center region from camera feed down to LR input size
-        Graphics.Blit(cameraTexture, lrRT);
+        // 1. Center-crop camera feed to 1:1 aspect ratio
+        float aspect = (float)cameraTexture.width / cameraTexture.height;
+        Vector2 scale = aspect > 1.0f ? new Vector2(1.0f / aspect, 1.0f) : new Vector2(1.0f, aspect);
+        Vector2 offset = aspect > 1.0f ? new Vector2((1.0f - scale.x) * 0.5f, 0.0f) : new Vector2(0.0f, (1.0f - scale.y) * 0.5f);
 
-        // 2. Convert RenderTexture to Sentis Tensor & Execute
+        Graphics.Blit(cameraTexture, lrRT, scale, offset);
+
+        // 2. Sentis Tensor Conversion & Execution
+        var transform = new TextureTransform().SetTensorLayout(TensorLayout.NCHW);
+
         using (Tensor<float> inputTensor = new Tensor<float>(new TensorShape(1, 3, inputRes, inputRes)))
         {
-            TextureConverter.ToTensor(lrRT, inputTensor, new TextureTransform());
+            TextureConverter.ToTensor(lrRT, inputTensor, transform);
             worker.Schedule(inputTensor);
-            Tensor<float> outputTensor = worker.PeekOutput() as Tensor<float>;
-            TextureConverter.RenderToTexture(outputTensor, hrRT);
+
+            using (Tensor<float> outputTensor = worker.PeekOutput() as Tensor<float>)
+            {
+                TextureConverter.RenderToTexture(outputTensor, hrRT);
+            }
         }
 
-        // 3. Read back upscaled frame for ZXing
+        // 3. Read back reconstructed high-res texture
         RenderTexture.active = hrRT;
         readbackTex.ReadPixels(new Rect(0, 0, outputRes, outputRes), 0, 0);
         readbackTex.Apply();
         RenderTexture.active = null;
 
-        // 4. Decode
-        Color32[] pixels = readbackTex.GetPixels32();
-        return barcodeReader.Decode(pixels, outputRes, outputRes);
+        Color32[] rawPixels = readbackTex.GetPixels32();
+
+        // 4. Allocate padded canvas with white background (Quiet Zone)
+        int padding = 32;
+        int paddedRes = outputRes + (padding * 2);
+        Color32[] paddedPixels = new Color32[paddedRes * paddedRes];
+        Color32 white = new Color32(255, 255, 255, 255);
+
+        for (int i = 0; i < paddedPixels.Length; i++) paddedPixels[i] = white;
+
+        // 5. FLIP MOVEMENT (Y-AXIS INVERSION):
+        // Maps bottom rows to top rows during pixel transfer without modifying UI Transforms
+        for (int y = 0; y < outputRes; y++)
+        {
+            // Source row scanned normally from top to bottom
+            int srcRow = y * outputRes;
+
+            // Destination row mapped in reverse order (bottom-up)
+            int dstY = (outputRes - 1 - y) + padding;
+            int dstRow = dstY * paddedRes;
+
+            for (int x = 0; x < outputRes; x++)
+            {
+                paddedPixels[dstRow + (x + padding)] = rawPixels[srcRow + x];
+            }
+        }
+
+        // 6. Decode vertically re-ordered pixels with ZXing
+        return barcodeReader.Decode(paddedPixels, paddedRes, paddedRes);
     }
 
     private void DecodeWithModel1()
@@ -303,7 +338,7 @@ public class QrCodeScanner : MonoBehaviour
                 resultText.text = result.Text;
             }
         }
-        else if (!isAutoScan)
+        else
         {
             Debug.Log($"Not getting any results using mode: {scanMode}");
         }

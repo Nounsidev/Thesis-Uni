@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using SmartWarehouse.Logging;
 
 public class UiHandler : MonoBehaviour
 {

@@ -12,6 +12,12 @@
 /[Uu]ser[Ss]ettings/
 *.log
 
+# Firebase generated build assets
+/Assets/StreamingAssets/google-services-desktop.json
+/Assets/Firebase/Plugins/x86/
+/Assets/Firebase/Plugins/x86_64/
+/Assets/GeneratedLocalRepo/
+
 # MemoryCaptures can get excessive in size.
 # They also could contain extremely sensitive data
 /[Mm]emoryCaptures/

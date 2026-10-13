@@ -1,3 +1,4 @@
+using SmartWarehouse.Logging;
 using System;
 using TMPro;
 using Unity.InferenceEngine;
@@ -123,6 +124,8 @@ public class QrCodeScanner : MonoBehaviour
         cameraTexture.Play();
 
         isCamAvailable = true;
+
+        LogManager.Instance.LogEvent(LogCategory.QRScanner_Event, "Camera initialized successfully.");
         BarcodeReaderInit();
     }
 

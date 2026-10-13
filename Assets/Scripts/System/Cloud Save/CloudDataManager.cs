@@ -1,40 +1,31 @@
 using System.Threading.Tasks;
-using UnityEngine;
 using SmartWarehouse.Cloud;
 
-public class CloudDataManager : MonoBehaviour
+public static class CloudDataManager
 {
-    public static CloudDataManager Instance { get; private set; }
-    private ProductData productData;
-
-
-    private readonly ICloudDataService cloudDataService = new CloudSaveDataService();
-
-    private void Awake()
-    {
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else Destroy(gameObject);
-    }
+    private static ProductData productData;
+    private static readonly ICloudDataService cloudDataService = new CloudSaveDataService();
 
     /// <summary>
     /// Load Important Data when first start the application
     /// </summary>
     /// <returns></returns>
-    public async Task LoadImportantData()
+    public static async Task LoadImportantData()
     {
         //General Player Data
         productData = await cloudDataService.LoadData<ProductData>(CloudSaveKey.GetPath(Key.ProductData));
     }
 
     #region Save Data
-    public async Task SaveProductData(ProductData productData)
+    public static async Task SaveProductData(ProductData productData)
     {
         await cloudDataService.SaveData(CloudSaveKey.GetPath(Key.ProductData), productData);
-        this.productData = productData;
+        CloudDataManager.productData = productData;
+    }
+
+    public static ProductData GetProductData()
+    {
+        return productData;
     }
 
     #endregion

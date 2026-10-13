@@ -3,18 +3,14 @@ using System.IO;
 using System.Threading.Tasks;
 using Unity.Services.Authentication;
 using Unity.Services.Authentication.PlayerAccounts;
-using Unity.Services.CloudSave.Internal;
 using Unity.Services.Core;
 using UnityEngine;
-using UnityEngine.UI;
 
 public class AuthenticationManager : MonoBehaviour
 {
     private PlayerInfo playerInfo;
     public event Action<PlayerInfo, string> OnSignedIn;
     private const string _accessToken = "_accessToken";
-    [SerializeField] private Button signInButton;
-    //[SerializeField] TextMeshProUGUI debugText;
 
     private readonly JsonDataService dataService = new JsonDataService();
     private const string INSTALL_KEY = "/INSTALL_KEY.json";
@@ -29,7 +25,6 @@ public class AuthenticationManager : MonoBehaviour
             await UnityServices.InitializeAsync();
 
         PlayerAccountService.Instance.SignedIn += SignInWithUnity;
-        signInButton.onClick.AddListener(SignInButton);
     }
 
     private void Start()
@@ -41,7 +36,6 @@ public class AuthenticationManager : MonoBehaviour
     private void OnDestroy()
     {
         PlayerAccountService.Instance.SignedIn -= SignInWithUnity;
-        signInButton.onClick.RemoveListener(SignInButton);
     }
 
     private void InstallKeyCheck()
@@ -77,8 +71,8 @@ public class AuthenticationManager : MonoBehaviour
         }
         else
         {
+            await PlayerAccountService.Instance.StartSignInAsync();
             //debugText.text = "Access Token not exists";
-            signInButton.gameObject.SetActive(true);
             OnSignInOptionActivate?.Invoke();
         }
     }
@@ -141,7 +135,6 @@ public class AuthenticationManager : MonoBehaviour
         }
         catch (Exception e)
         {
-            signInButton.gameObject.SetActive(true);
             Debug.LogException(e);
         }
     }
@@ -164,22 +157,14 @@ public class AuthenticationManager : MonoBehaviour
         {
             // Compare error code to AuthenticationErrorCodes
             // Notify the player with the proper error message
-            signInButton.gameObject.SetActive(true);
             Debug.LogException(ex);
         }
         catch (RequestFailedException ex)
         {
             // Compare error code to CommonErrorCodes
             // Notify the player with the proper error message
-            signInButton.gameObject.SetActive(true);
             Debug.LogException(ex);
         }
-    }
-
-    public async void SignInButton()
-    {
-        signInButton.gameObject.SetActive(false);
-        await PlayerAccountService.Instance.StartSignInAsync();
     }
     #endregion
 
@@ -190,7 +175,6 @@ public class AuthenticationManager : MonoBehaviour
         {
             await AuthenticationService.Instance.SignInAnonymouslyAsync();
             CloudDataInitializer.Instance.CreateData();
-            signInButton.gameObject.SetActive(false);
             Debug.Log("Player Id: " + AuthenticationService.Instance.PlayerId);
         }
         catch (AuthenticationException ex)

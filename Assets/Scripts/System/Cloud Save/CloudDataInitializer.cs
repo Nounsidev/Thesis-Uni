@@ -1,6 +1,4 @@
 using UnityEngine;
-using UnityEngine.UI;
-using System.Collections;
 using SmartWarehouse.Cloud;
 
 
@@ -9,13 +7,10 @@ public class CloudDataInitializer : MonoBehaviour
     public enum Mode { Debug, Production }
     public Mode mode;
     [SerializeField] private AuthenticationManager authenticationManager;
-    [SerializeField] private Animator anim;
     private readonly ICloudDataService cloudDataService = new CloudSaveDataService();
     public static CloudDataInitializer Instance;
-    [SerializeField] private Button playButton;
 
     [SerializeField] private bool isForceLoadData;
-    [SerializeField] private bool isForceLoadTutorialScene;
 
     private void Awake()
     {
@@ -38,21 +33,14 @@ public class CloudDataInitializer : MonoBehaviour
             //Create Character Data pack
             ProductData productData = new();
 
-            await CloudDataManager.Instance.SaveProductData(productData);
+            await CloudDataManager.SaveProductData(productData);
             if (mode == Mode.Production) isNewKeyCreated = true;
-            //isFirstTimePlayer = true;
+            
         }
 
 
-        if (isForceLoadData || !isNewKeyCreated) await CloudDataManager.Instance.LoadImportantData();
-        StartCoroutine(PlayButtonCoroutine());
+        if (isForceLoadData || !isNewKeyCreated) await CloudDataManager.LoadImportantData();
     }
 
-    private IEnumerator PlayButtonCoroutine()
-    {
-        yield return new WaitForSeconds(2.8f);
-        playButton.gameObject.SetActive(true);
-        anim.Play("Play");
-    }
     #endregion
 }

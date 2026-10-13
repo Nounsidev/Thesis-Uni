@@ -1,6 +1,6 @@
 namespace SmartWarehouse.Cloud
 {
-    public enum Key { ProductData, SystemLog };
+    public enum Key { ProductData, SystemLog, Transaction };
     public enum ProductType { Milk, Meat, Fish};
     public static class CloudSaveKey
     {

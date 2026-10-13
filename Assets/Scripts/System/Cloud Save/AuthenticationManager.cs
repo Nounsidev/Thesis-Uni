@@ -25,10 +25,7 @@ public class AuthenticationManager : MonoBehaviour
             await UnityServices.InitializeAsync();
 
         PlayerAccountService.Instance.SignedIn += SignInWithUnity;
-    }
 
-    private void Start()
-    {
         InstallKeyCheck();
         SignIn();
     }
@@ -175,7 +172,7 @@ public class AuthenticationManager : MonoBehaviour
         {
             await AuthenticationService.Instance.SignInAnonymouslyAsync();
             CloudDataInitializer.Instance.CreateData();
-            Debug.Log("Player Id: " + AuthenticationService.Instance.PlayerId);
+            //Debug.Log("Player Id: " + AuthenticationService.Instance.PlayerId);
         }
         catch (AuthenticationException ex)
         {

@@ -1,15 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using TMPro;
-using Unity.Services.CloudSave;
-using Unity.Services.Core;
 using UnityEngine;
 using SmartWarehouse.Cloud;
-
-// Uncomment once Unity Cloud Save package is installed via Package Manager:
-// using Unity.Services.CloudSave;
+using SmartWarehouse.Core;
 
 namespace SmartWarehouse.Logging
 {
@@ -23,20 +17,6 @@ namespace SmartWarehouse.Logging
         AI_Error,
     }
 
-    [Serializable]
-    public class LogEntryData
-    {
-        public string timestamp;
-        public string category;
-        public string message;
-    }
-
-    [Serializable]
-    public class CloudLogContainer
-    {
-        public List<LogEntryData> entries = new List<LogEntryData>();
-    }
-
     public class LogManager : MonoBehaviour
     {
         public static LogManager Instance { get; private set; }
@@ -44,14 +24,13 @@ namespace SmartWarehouse.Logging
         [Header("UI References")]
         private LogUi logUi;
 
-
         [Header("Cloud Sync Settings")]
-        [SerializeField] private int cloudSyncBatchSize = 20;
-        private List<LogEntryData> pendingCloudLogs = new List<LogEntryData>();
+        [SerializeField] private int logCountBeforeCloudSync = 20;
+        private int logsWrittenSinceLastSync = 0;
 
         private string logFilePath;
 
-        private async void Awake()
+        private void Awake()
         {
             if (Instance == null)
             {
@@ -63,110 +42,80 @@ namespace SmartWarehouse.Logging
                 Destroy(gameObject);
                 return;
             }
+
             logUi = GetComponent<LogUi>();
             logFilePath = Path.Combine(Application.persistentDataPath, "system_events.log");
-            //Debug.Log($"Log file path: {logFilePath}");
-
-            // Initialize Unity Cloud Services
-            try
-            {
-                await UnityServices.InitializeAsync();
-                Debug.Log("Unity Cloud Services initialized successfully for logging.");
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"Failed to initialize Unity Cloud Services: {ex.Message}");
-            }
         }
 
         public async void LogEvent(LogCategory category, string message)
         {
-            string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            string timestamp = DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss");
             string formattedEntry = $"[{timestamp}] [{category}] {message}";
 
             // 1. Console Log
             Debug.Log(formattedEntry);
 
             // 2. UI Display
-            logUi.UpdateText(formattedEntry + "\n");
+            if (logUi != null)
+            {
+                logUi.UpdateText(formattedEntry + "\n");
+            }
 
-            // 3. Local File Log (Append)
+            // 3. Local File Log (Direct Append - already working!)
             try
             {
                 File.AppendAllText(logFilePath, formattedEntry + "\n");
+                logsWrittenSinceLastSync++;
             }
             catch (Exception ex)
             {
                 Debug.LogError($"Failed to write to log file: {ex.Message}");
             }
 
-            // 4. Queue for Cloud Sync
-            pendingCloudLogs.Add(new LogEntryData
+            // 4. Trigger cloud sync every X log entries
+            if (logsWrittenSinceLastSync >= logCountBeforeCloudSync)
             {
-                timestamp = timestamp,
-                category = category.ToString(),
-                message = message
-            });
-
-            if (pendingCloudLogs.Count >= cloudSyncBatchSize)
-            {
+                logsWrittenSinceLastSync = 0;
                 await FlushLogsToCloudAsync();
             }
         }
 
         private async Task FlushLogsToCloudAsync()
         {
-            if (pendingCloudLogs.Count == 0) return;
-
             if (!File.Exists(logFilePath)) return;
 
             try
             {
-                // 1. Read the local log file as a byte array (just like the documentation example)
+                // Read the actual local log file as raw bytes and sync via cloud helper
                 byte[] fileBytes = File.ReadAllBytes(logFilePath);
-
-                // 2. Define a unique file key for cloud storage (e.g., based on date or device)
-                string cloudFileName = CloudSaveKey.GetPath(Key.SystemLog) + ".log";
-
-                // 3. Upload using Unity Cloud Save Files API
-                await CloudSaveService.Instance.Files.Player.SaveAsync(cloudFileName, fileBytes);
-
-                Debug.Log($"Successfully uploaded log file ({cloudFileName}) to Unity Cloud.");
+                await CloudFileSaving.SaveBytesAsync(Key.SystemLog, fileBytes);
+                Debug.Log("System log file successfully synced to cloud.");
             }
             catch (Exception ex)
             {
-                Debug.LogError($"Failed to upload log file to Unity Cloud: {ex.Message}");
+                Debug.LogError($"Failed to flush log file to cloud: {ex.Message}");
             }
         }
 
-        private async Task LoadLogFileFromCloudAsync()
+        public async Task LoadSystemLogAsync()
         {
             try
             {
-                string cloudFileName = CloudSaveKey.GetPath(Key.SystemLog) + ".log";
-
-                // 1. Download file bytes from Unity Cloud Save
-                byte[] fileBytes = await CloudSaveService.Instance.Files.Player.LoadBytesAsync(cloudFileName);
-
+                byte[] fileBytes = await CloudFileSaving.LoadBytesAsync(Key.SystemLog);
                 if (fileBytes != null && fileBytes.Length > 0)
                 {
-                    // 2. Write the downloaded bytes back into your local persistent log file path
                     File.WriteAllBytes(logFilePath, fileBytes);
-                    Debug.Log($"Successfully loaded and restored log file from Unity Cloud to: {logFilePath}");
+                    Debug.Log("Successfully restored local log file from cloud.");
                 }
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"No existing log file found in cloud or failed to load: {ex.Message}");
+                Debug.LogWarning($"Could not load log file from cloud (using local cache): {ex.Message}");
             }
         }
 
-
-        
-
         private async void OnApplicationQuit()
         {
-            // Ensure remaining buffered logs are pushed before closing
             await FlushLogsToCloudAsync();
         }
     }

@@ -336,14 +336,18 @@ public class QrCodeScanner : MonoBehaviour
         if (result != null)
         {
             Debug.Log($"Scanned QR Code ({scanMode}): {result.Text}");
-            if (resultText != null)
+            if (result.Text != resultText.text)
             {
                 resultText.text = result.Text;
+                StorageItem scannedItem = ItemReader.ParseItemCode(result.Text);
+                TransactionManager.Instance.RecordTransaction(scannedItem, TransactionActionType.IN);
+                LogManager.Instance.LogEvent(LogCategory.QRScanner_Event, $"Scanned QR Code: {result.Text}");
             }
         }
         else
         {
             Debug.Log($"Not getting any results using mode: {scanMode}");
+            LogManager.Instance.LogEvent(LogCategory.QRScanner_Error, $"No QR Code detected using mode: {scanMode}");
         }
     }
 

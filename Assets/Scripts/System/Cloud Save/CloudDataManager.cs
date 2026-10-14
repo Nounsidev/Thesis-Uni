@@ -1,5 +1,6 @@
 using SmartWarehouse.Cloud;
 using SmartWarehouse.Core;
+using SmartWarehouse.Inventory;
 using SmartWarehouse.Logging;
 using System.Threading.Tasks;
 
@@ -18,6 +19,7 @@ public static class CloudDataManager
         productData = await cloudDataService.LoadData<ProductData>(CloudSaveKey.GetPath(Key.ProductData));
         await TransactionManager.Instance.LoadTransactionsAsync();
         await LogManager.Instance.LoadSystemLogAsync();
+        await ProductRegistry.Instance.InitializeRegistryAsync();
     }
 
     #region Save Data

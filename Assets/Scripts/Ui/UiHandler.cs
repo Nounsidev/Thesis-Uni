@@ -2,48 +2,77 @@ using UnityEngine;
 using UnityEngine.UI;
 using SmartWarehouse.Logging;
 
-public class UiHandler : MonoBehaviour
+namespace SmartWarehouse.UI
 {
-    [SerializeField] GameObject[] panels;
-    [SerializeField] Button[] switchButtons;
-
-    private int currentPanelId;
-
-    private void Start()
+    public enum PanelType
     {
-        for (int i = 0; i < panels.Length; i++)
-        {
-            int iCpy = i;
-            switchButtons[i].onClick.AddListener(()=>SwitchButton(iCpy));
-        }
-
-        ResetActivePanel();
+        AddProduct,
+        Catalog,
+        QrGenerator,
+        QrScanner,
+        Plc,
     }
 
-    private void OnDisable()
+    public class UiHandler : MonoBehaviour
     {
-        for (int i = 0; i < panels.Length; i++)
-        {
-            int iCpy = i;
-            switchButtons[i].onClick.RemoveListener(() => SwitchButton(iCpy));
-        }
-    }
+        [SerializeField] GameObject[] panels;
+        [SerializeField] Button[] switchButtons;
 
-    private void ResetActivePanel()
-    {
-        for (int i = 1; i < panels.Length; i++)
+        private int currentPanelId;
+        public static UiHandler Instance { get; private set; }
+
+        private void Awake()
         {
-            panels[i].SetActive(false);
+            Instance = this;
         }
 
-        panels[0].SetActive(true);
-    }
+        private void Start()
+        {
 
-    private void SwitchButton(int buttonId)
-    {
-        panels[currentPanelId].SetActive(false);
+            for (int i = 0; i < panels.Length; i++)
+            {
+                int iCpy = i;
+                switchButtons[i].onClick.AddListener(() => SwitchButton(iCpy));
+            }
 
-        currentPanelId = buttonId;
-        panels[currentPanelId].SetActive(true);
+            ResetActivePanel();
+        }
+
+        private void OnDisable()
+        {
+            for (int i = 0; i < panels.Length; i++)
+            {
+                int iCpy = i;
+                switchButtons[i].onClick.RemoveListener(() => SwitchButton(iCpy));
+            }
+        }
+
+        private void ResetActivePanel()
+        {
+            for (int i = 1; i < panels.Length; i++)
+            {
+                panels[i].SetActive(false);
+            }
+
+            panels[0].SetActive(true);
+        }
+
+        private void SwitchButton(int buttonId)
+        {
+            panels[currentPanelId].SetActive(false);
+
+            currentPanelId = buttonId;
+            panels[currentPanelId].SetActive(true);
+        }
+
+        public void SwitchPanel(PanelType panelType)
+        { 
+            int id = (int)panelType;
+
+            panels[currentPanelId].SetActive(false);
+
+            currentPanelId = id;
+            panels[currentPanelId].SetActive(true);
+        }
     }
 }

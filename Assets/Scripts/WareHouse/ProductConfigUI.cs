@@ -1,48 +1,87 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using ZXing;
+using ZXing.Common;
 using SmartWarehouse.Core;
 using SmartWarehouse.Cloud;
 using SmartWarehouse.Inventory;
-using SmartWarehouse.Logging;
 
 public class ProductConfigUI : MonoBehaviour
 {
     [Header("Form Inputs")]
     [SerializeField] private TMP_InputField nameInputField;
-    [SerializeField] private TMP_InputField codeInputField;
-    [SerializeField] private TMP_InputField labelsInputField; // Comma-separated labels
+    [SerializeField] private TMP_InputField codeInputField; // Should be locked/disabled when editing
+    [SerializeField] private TMP_InputField labelsInputField;
     [SerializeField] private TMP_InputField expiryWarningField;
     [SerializeField] private TMP_InputField stockWarningField;
+
+    [Header("Buttons")]
+    [SerializeField] private Button submitButton;
+    [SerializeField] private Button cancelButton;
 
     [Header("UI Previews")]
     [SerializeField] private Image iconPreviewImage;
     [SerializeField] private Sprite defaultPlaceholderSprite;
 
-    [Header("Buttons")]
-    [SerializeField] private Button selectIconButton;
-    [SerializeField] private Button addItemButton;
-    [SerializeField] private Button resetDataButton;    
-
     private Texture2D uploadedIconTexture;
+    private bool isEditingMode = false;
+    private string editingCustomCode = "";
 
     private void Awake()
     {
-        
-        selectIconButton.onClick.AddListener(SelectIconButton);      
-        addItemButton.onClick.AddListener(SubmitAndSaveNewProduct);    
-        resetDataButton.onClick.AddListener(ClearFormFields);
+        submitButton.onClick.AddListener(SubmitAndSaveNewProduct);
+        cancelButton.onClick.AddListener(ClearFormFields);
     }
 
-    private void OnDestroy()
+    private void OnDisable()
     {
-        selectIconButton.onClick.RemoveListener(SelectIconButton);
-        addItemButton.onClick.RemoveListener(SubmitAndSaveNewProduct);
-        resetDataButton.onClick.RemoveListener(ClearFormFields);
+        submitButton.onClick.RemoveListener(SubmitAndSaveNewProduct);
+        cancelButton.onClick.RemoveListener(ClearFormFields);
     }
 
-    private void SelectIconButton()
+    /// <summary>
+    /// Call this from the Catalog Row's EDIT button to populate the form with existing product data.
+    /// </summary>
+    public void LoadProductIntoForm(ProductBase product)
+    {
+        if (product == null) return;
+
+        isEditingMode = true;
+        editingCustomCode = product.customCode;
+
+        if (nameInputField != null) nameInputField.text = product.productName;
+        if (codeInputField != null)
+        {
+            codeInputField.text = product.customCode;
+            codeInputField.interactable = false; // Prevent modifying primary key code during edit
+        }
+
+        if (labelsInputField != null)
+        {
+            labelsInputField.text = product.labels != null ? string.Join(", ", product.labels) : "";
+        }
+
+        if (expiryWarningField != null) expiryWarningField.text = product.minDaysBeforeExpiryWarning.ToString();
+        if (stockWarningField != null) stockWarningField.text = product.minStockWarningThreshold.ToString();
+
+        // Load existing icon if available locally
+        string localIconPath = Path.Combine(Application.persistentDataPath, product.iconFileName);
+        if (File.Exists(localIconPath))
+        {
+            byte[] fileData = File.ReadAllBytes(localIconPath);
+            uploadedIconTexture = new Texture2D(2, 2);
+            if (uploadedIconTexture.LoadImage(fileData))
+            {
+                iconPreviewImage.sprite = Sprite.Create(uploadedIconTexture, new Rect(0, 0, uploadedIconTexture.width, uploadedIconTexture.height), new Vector2(0.5f, 0.5f));
+            }
+        }
+    }
+
+    public void OnClickSelectIcon()
     {
 #if UNITY_EDITOR
         string path = UnityEditor.EditorUtility.OpenFilePanel("Select Product Icon", "", "png,jpg");
@@ -50,10 +89,7 @@ public class ProductConfigUI : MonoBehaviour
 #else
         NativeFilePicker.Permission permission = NativeFilePicker.PickFile((path) =>
         {
-            if (!string.IsNullOrEmpty(path))
-            {
-                LoadIconFromFile(path);
-            }
+            if (!string.IsNullOrEmpty(path)) LoadIconFromFile(path);
         }, "Select Product Image", new string[] { "image/png", "image/jpeg" });
 #endif
     }
@@ -61,23 +97,18 @@ public class ProductConfigUI : MonoBehaviour
     private void LoadIconFromFile(string path)
     {
         if (string.IsNullOrEmpty(path)) return;
-
         byte[] fileData = File.ReadAllBytes(path);
         uploadedIconTexture = new Texture2D(2, 2);
         if (uploadedIconTexture.LoadImage(fileData))
         {
-            iconPreviewImage.sprite = Sprite.Create(
-                uploadedIconTexture,
-                new Rect(0, 0, uploadedIconTexture.width, uploadedIconTexture.height),
-                new Vector2(0.5f, 0.5f)
-            );
+            iconPreviewImage.sprite = Sprite.Create(uploadedIconTexture, new Rect(0, 0, uploadedIconTexture.width, uploadedIconTexture.height), new Vector2(0.5f, 0.5f));
         }
     }
 
     private async void SubmitAndSaveNewProduct()
     {
         string productName = nameInputField.text;
-        string customCode = codeInputField.text.ToUpper();
+        string customCode = isEditingMode ? editingCustomCode : codeInputField.text.ToUpper();
 
         if (string.IsNullOrEmpty(productName) || string.IsNullOrEmpty(customCode))
         {
@@ -85,74 +116,67 @@ public class ProductConfigUI : MonoBehaviour
             return;
         }
 
-        ProductBase newProduct = new ProductBase
-        {
-            productName = productName,
-            customCode = customCode,
-            iconFileName = $"icon_{customCode}.png"
-        };
+        ProductBase product;
 
-        // Parse comma-separated labels (e.g., "Perishable, Frozen, Meat")
+        if (isEditingMode && ProductRegistry.Instance != null)
+        {
+            product = ProductRegistry.Instance.GetProduct(customCode);
+            if (product == null) product = new ProductBase { customCode = customCode };
+        }
+        else
+        {
+            product = new ProductBase { customCode = customCode };
+        }
+
+        product.productName = productName;
+        product.iconFileName = $"icon_{customCode}.png";
+        product.labels.Clear();
+
         if (labelsInputField != null && !string.IsNullOrEmpty(labelsInputField.text))
         {
             string[] rawLabels = labelsInputField.text.Split(',');
             foreach (var label in rawLabels)
             {
                 string trimmed = label.Trim();
-                if (!string.IsNullOrEmpty(trimmed))
-                {
-                    newProduct.labels.Add(trimmed);
-                }
+                if (!string.IsNullOrEmpty(trimmed)) product.labels.Add(trimmed);
             }
         }
 
-        if (int.TryParse(expiryWarningField.text, out int expiryDays))
-            newProduct.minDaysBeforeExpiryWarning = expiryDays;
+        if (int.TryParse(expiryWarningField.text, out int expiryDays)) product.minDaysBeforeExpiryWarning = expiryDays;
+        if (int.TryParse(stockWarningField.text, out int stockThreshold)) product.minStockWarningThreshold = stockThreshold;
 
-        if (int.TryParse(stockWarningField.text, out int stockThreshold))
-            newProduct.minStockWarningThreshold = stockThreshold;
-
-        // Save icon locally and sync bytes to cloud
         if (uploadedIconTexture != null)
         {
             byte[] iconBytes = uploadedIconTexture.EncodeToPNG();
-            string localIconPath = Path.Combine(Application.persistentDataPath, newProduct.iconFileName);
+            string localIconPath = Path.Combine(Application.persistentDataPath, product.iconFileName);
             File.WriteAllBytes(localIconPath, iconBytes);
-
             await CloudFileSaving.SaveBytesAsync(Key.ProductIcon, iconBytes);
         }
-       
-        // Register and sync catalog container
+
         if (ProductRegistry.Instance != null)
         {
-            ProductRegistry.Instance.AddAndSyncNewProduct(newProduct);
+            ProductRegistry.Instance.AddAndSyncNewProduct(product);
         }
 
-        Debug.Log($"Product '{productName}' successfully created, saved, and synced!");
-        LogManager.Instance.LogEvent(LogCategory.SYSTEM_Event, $"New product created: {productName} (Code: {customCode})");
-
+        Debug.Log($"Product '{productName}' successfully {(isEditingMode ? "updated" : "created")} and synced!");
         ClearFormFields();
     }
 
-    /// <summary>
-    /// Clears all input fields, uploaded textures, and image preview elements.
-    /// Hook this to your "RESET DATA" button.
-    /// </summary>
     private void ClearFormFields()
     {
+        isEditingMode = false;
+        editingCustomCode = "";
         if (nameInputField != null) nameInputField.text = string.Empty;
-        if (codeInputField != null) codeInputField.text = string.Empty;
+        if (codeInputField != null)
+        {
+            codeInputField.text = string.Empty;
+            codeInputField.interactable = true; // Re-enable for new entries
+        }
         if (labelsInputField != null) labelsInputField.text = string.Empty;
         if (expiryWarningField != null) expiryWarningField.text = string.Empty;
         if (stockWarningField != null) stockWarningField.text = string.Empty;
 
         uploadedIconTexture = null;
-
-        if (iconPreviewImage != null)
-        {
-            iconPreviewImage.sprite = defaultPlaceholderSprite;
-        }
-
-        Debug.Log("[ProductConfigUI] All input fields and UI previews cleared.");
+        if (iconPreviewImage != null) iconPreviewImage.sprite = defaultPlaceholderSprite;
     }
 }

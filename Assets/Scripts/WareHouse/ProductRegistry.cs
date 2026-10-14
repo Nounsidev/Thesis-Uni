@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using SmartWarehouse.Core;
 using SmartWarehouse.Cloud;
+using SmartWarehouse.Logging;
 
 namespace SmartWarehouse.Inventory
 {
@@ -117,10 +118,12 @@ namespace SmartWarehouse.Inventory
             {
                 await CloudFileSaving.SaveDataAsync(Key.Catalog, catalogContainer);
                 Debug.Log($"[ProductRegistry] Product '{newProduct.customCode}' saved locally and synced to cloud.");
+                LogManager.Instance.LogEvent(LogCategory.SYSTEM_Event ,$"Product '{newProduct.customCode}' added/updated and synced to cloud.");
             }
             catch (System.Exception ex)
             {
                 Debug.LogError($"[ProductRegistry] Failed to sync product catalog container to cloud: {ex.Message}");
+                LogManager.Instance.LogEvent(LogCategory.SYSTEM_Error, $"Product '{newProduct.customCode}' failed to sync to cloud.");
             }
         }
 

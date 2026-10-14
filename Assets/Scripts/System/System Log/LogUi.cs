@@ -7,12 +7,13 @@ public class LogUi : MonoBehaviour
     [SerializeField] GameObject logPanel;
     [SerializeField] private TextMeshProUGUI logTextDisplay;
     [SerializeField] private int maxLogLines = 20;
+    [SerializeField] KeyCode toggleKey = KeyCode.L;
     bool isActive = false;
 
 
     private void Update()
     {
-        if(Input.GetKeyDown(KeyCode.L))
+        if(Input.GetKeyDown(toggleKey))
         {
             ToggleLog();
         }

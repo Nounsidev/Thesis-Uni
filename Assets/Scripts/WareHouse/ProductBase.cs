@@ -1,7 +1,8 @@
-using System;
-using UnityEngine;
-using SmartWarehouse.Core;
 using SmartWarehouse.Cloud;
+using SmartWarehouse.Core;
+using System;
+using System.Collections.Generic;
+using UnityEngine;
 
 namespace SmartWarehouse.Inventory
 {     
@@ -9,7 +10,7 @@ namespace SmartWarehouse.Inventory
     {
         [Header("Identification")]
         public string productName;
-        public string category;
+        public List<string> labels = new List<string>();
         public string customCode;
 
         public string iconFileName;

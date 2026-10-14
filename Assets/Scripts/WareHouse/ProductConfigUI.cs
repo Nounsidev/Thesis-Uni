@@ -1,38 +1,53 @@
-using System;
 using System.IO;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
-using ZXing;
-using ZXing.Common;
 using SmartWarehouse.Core;
 using SmartWarehouse.Cloud;
 using SmartWarehouse.Inventory;
+using SmartWarehouse.Logging;
 
 public class ProductConfigUI : MonoBehaviour
 {
     [Header("Form Inputs")]
     [SerializeField] private TMP_InputField nameInputField;
     [SerializeField] private TMP_InputField codeInputField;
-    [SerializeField] private TMP_Dropdown categoryDropdown;
+    [SerializeField] private TMP_InputField labelsInputField; // Comma-separated labels
     [SerializeField] private TMP_InputField expiryWarningField;
     [SerializeField] private TMP_InputField stockWarningField;
 
     [Header("UI Previews")]
     [SerializeField] private Image iconPreviewImage;
+    [SerializeField] private Sprite defaultPlaceholderSprite;
+
+    [Header("Buttons")]
+    [SerializeField] private Button selectIconButton;
+    [SerializeField] private Button addItemButton;
+    [SerializeField] private Button resetDataButton;    
+
     private Texture2D uploadedIconTexture;
 
-    /// <summary>
-    /// Handles cross-platform image selection for both Editor testing and standalone runtime builds.
-    /// </summary>
-    public void OnClickSelectIcon()
+    private void Awake()
+    {
+        
+        selectIconButton.onClick.AddListener(SelectIconButton);      
+        addItemButton.onClick.AddListener(SubmitAndSaveNewProduct);    
+        resetDataButton.onClick.AddListener(ClearFormFields);
+    }
+
+    private void OnDestroy()
+    {
+        selectIconButton.onClick.RemoveListener(SelectIconButton);
+        addItemButton.onClick.RemoveListener(SubmitAndSaveNewProduct);
+        resetDataButton.onClick.RemoveListener(ClearFormFields);
+    }
+
+    private void SelectIconButton()
     {
 #if UNITY_EDITOR
-        // Editor fallback for fast testing
         string path = UnityEditor.EditorUtility.OpenFilePanel("Select Product Icon", "", "png,jpg");
         LoadIconFromFile(path);
 #else
-        // Runtime File Picker for standalone builds (requires Native File Picker plugin or standard runtime open file implementation)
         NativeFilePicker.Permission permission = NativeFilePicker.PickFile((path) =>
         {
             if (!string.IsNullOrEmpty(path))
@@ -56,15 +71,13 @@ public class ProductConfigUI : MonoBehaviour
                 new Rect(0, 0, uploadedIconTexture.width, uploadedIconTexture.height),
                 new Vector2(0.5f, 0.5f)
             );
-            Debug.Log("Product icon loaded successfully from: " + path);
         }
     }
 
-    public async void SubmitAndSaveNewProduct()
+    private async void SubmitAndSaveNewProduct()
     {
         string productName = nameInputField.text;
         string customCode = codeInputField.text.ToUpper();
-        string categoryStr = categoryDropdown.options[categoryDropdown.value].text;
 
         if (string.IsNullOrEmpty(productName) || string.IsNullOrEmpty(customCode))
         {
@@ -72,14 +85,26 @@ public class ProductConfigUI : MonoBehaviour
             return;
         }
 
-        // Use ProductData (pure JSON class, not ScriptableObject)
         ProductBase newProduct = new ProductBase
         {
             productName = productName,
-            category = categoryStr,
             customCode = customCode,
             iconFileName = $"icon_{customCode}.png"
         };
+
+        // Parse comma-separated labels (e.g., "Perishable, Frozen, Meat")
+        if (labelsInputField != null && !string.IsNullOrEmpty(labelsInputField.text))
+        {
+            string[] rawLabels = labelsInputField.text.Split(',');
+            foreach (var label in rawLabels)
+            {
+                string trimmed = label.Trim();
+                if (!string.IsNullOrEmpty(trimmed))
+                {
+                    newProduct.labels.Add(trimmed);
+                }
+            }
+        }
 
         if (int.TryParse(expiryWarningField.text, out int expiryDays))
             newProduct.minDaysBeforeExpiryWarning = expiryDays;
@@ -87,37 +112,47 @@ public class ProductConfigUI : MonoBehaviour
         if (int.TryParse(stockWarningField.text, out int stockThreshold))
             newProduct.minStockWarningThreshold = stockThreshold;
 
-        // Save icon locally in persistent data path and upload bytes to cloud
+        // Save icon locally and sync bytes to cloud
         if (uploadedIconTexture != null)
         {
             byte[] iconBytes = uploadedIconTexture.EncodeToPNG();
             string localIconPath = Path.Combine(Application.persistentDataPath, newProduct.iconFileName);
             File.WriteAllBytes(localIconPath, iconBytes);
 
-            await CloudFileSaving.SaveBytesAsync(Key.Catalog, iconBytes);
+            await CloudFileSaving.SaveBytesAsync(Key.ProductIcon, iconBytes);
         }
-
-        // Register product and sync catalog JSON container to cloud
+       
+        // Register and sync catalog container
         if (ProductRegistry.Instance != null)
         {
             ProductRegistry.Instance.AddAndSyncNewProduct(newProduct);
         }
 
-        Debug.Log($"Product '{productName}' successfully created, configured, and synced!");
+        Debug.Log($"Product '{productName}' successfully created, saved, and synced!");
+        LogManager.Instance.LogEvent(LogCategory.SYSTEM_Event, $"New product created: {productName} (Code: {customCode})");
+
+        ClearFormFields();
     }
 
-    private Texture2D GenerateQRCodeTexture(string textToEncode)
+    /// <summary>
+    /// Clears all input fields, uploaded textures, and image preview elements.
+    /// Hook this to your "RESET DATA" button.
+    /// </summary>
+    private void ClearFormFields()
     {
-        BarcodeWriter writer = new BarcodeWriter
-        {
-            Format = BarcodeFormat.QR_CODE,
-            Options = new EncodingOptions { Height = 256, Width = 256, Margin = 1 }
-        };
+        if (nameInputField != null) nameInputField.text = string.Empty;
+        if (codeInputField != null) codeInputField.text = string.Empty;
+        if (labelsInputField != null) labelsInputField.text = string.Empty;
+        if (expiryWarningField != null) expiryWarningField.text = string.Empty;
+        if (stockWarningField != null) stockWarningField.text = string.Empty;
 
-        Color32[] pixelMap = writer.Write(textToEncode);
-        Texture2D qrTex = new Texture2D(256, 256);
-        qrTex.SetPixels32(pixelMap);
-        qrTex.Apply();
-        return qrTex;
+        uploadedIconTexture = null;
+
+        if (iconPreviewImage != null)
+        {
+            iconPreviewImage.sprite = defaultPlaceholderSprite;
+        }
+
+        Debug.Log("[ProductConfigUI] All input fields and UI previews cleared.");
     }
 }

@@ -15,6 +15,8 @@ namespace SmartWarehouse.Logging
         QRScanner_Error,
         AI_Event,
         AI_Error,
+        SYSTEM_Event,
+        SYSTEM_Error,
     }
 
     public class LogManager : MonoBehaviour

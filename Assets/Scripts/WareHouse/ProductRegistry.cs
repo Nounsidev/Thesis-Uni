@@ -21,7 +21,7 @@ namespace SmartWarehouse.Inventory
         private ProductCatalogContainer catalogContainer = new ProductCatalogContainer();
         private string localCatalogPath;
 
-        private async void Awake()
+        private void Awake()
         {
             if (Instance == null)
             {
@@ -35,7 +35,6 @@ namespace SmartWarehouse.Inventory
             }
 
             localCatalogPath = Path.Combine(Application.persistentDataPath, "product_catalog.json");
-            await InitializeRegistryAsync();
         }
 
         /// <summary>

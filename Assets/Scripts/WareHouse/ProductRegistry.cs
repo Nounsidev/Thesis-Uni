@@ -16,6 +16,8 @@ namespace SmartWarehouse.Inventory
 
     public class ProductRegistry : MonoBehaviour
     {
+
+        [SerializeField] private ProductCatalogListManager productCatalogListManager;
         public static ProductRegistry Instance { get; private set; }
 
         private Dictionary<string, ProductBase> productDatabase = new Dictionary<string, ProductBase>();
@@ -60,6 +62,8 @@ namespace SmartWarehouse.Inventory
                 LoadCatalogLocally();
                 Debug.Log($"[ProductRegistry] Initialized using local cache. Total products: {productDatabase.Count}");
             }
+
+            productCatalogListManager.RefreshCatalogDisplay();
         }
 
         private void LoadCatalogLocally()
@@ -87,8 +91,10 @@ namespace SmartWarehouse.Inventory
         /// </summary>
         public async void AddAndSyncNewProduct(ProductBase newProduct)
         {
-            if (newProduct == null || string.IsNullOrEmpty(newProduct.customCode)) return;
+            
 
+            if (newProduct == null || string.IsNullOrEmpty(newProduct.customCode)) return;
+            LoadingIcon.Instance.Show();
             string key = newProduct.customCode.ToUpper();
 
             int existingIndex = catalogContainer.products.FindIndex(p => p.customCode.ToUpper() == key);
@@ -118,6 +124,54 @@ namespace SmartWarehouse.Inventory
                 //Debug.LogError($"[ProductRegistry] Failed to sync product catalog container to cloud: {ex.Message}");
                 LogManager.Instance.LogEvent(LogCategory.SYSTEM_Error, $"Product '{newProduct.customCode}' failed to sync to cloud.");
             }
+
+            LoadingIcon.Instance.Hide();
+        }
+
+        /// <summary>
+        /// Deletes a product from the registry, removes its local icon file, and syncs the updated catalog to the cloud.
+        /// </summary>
+        public async void DeleteProduct(string customCode)
+        {
+            if (string.IsNullOrEmpty(customCode)) return;
+            
+            LoadingIcon.Instance.Show();
+
+            string key = customCode.ToUpper();
+            ProductBase productToRemove = GetProduct(key);
+
+            if (productToRemove != null)
+            {
+                // Remove from list
+                catalogContainer.products.RemoveAll(p => p.customCode != null && p.customCode.ToUpper() == key);
+
+                // Delete local icon file if it exists
+                string localIconPath = Path.Combine(Application.persistentDataPath, productToRemove.iconFileName);
+                if (File.Exists(localIconPath))
+                {
+                    File.Delete(localIconPath);
+                }
+
+                RebuildDictionary();
+                SaveCatalogLocally();
+
+                // Sync updated container to cloud save
+                try
+                {
+                    await CloudFileSaving.SaveDataAsync(Key.Catalog, catalogContainer);
+                    //Debug.Log($"[ProductRegistry] Product '{key}' successfully deleted and cloud synced.");
+                    
+                    LogManager.Instance.LogEvent(LogCategory.SYSTEM_Event, $"Product '{key}' deleted and synced to cloud.");     
+                }
+                catch
+                {
+                    LogManager.Instance.LogEvent(LogCategory.SYSTEM_Event, $"Product '{key}' deleted and synced to cloud.");
+                }
+
+                productCatalogListManager.RefreshCatalogDisplay();
+            }
+
+            LoadingIcon.Instance.Hide();
         }
 
         private void RebuildDictionary()

@@ -4,6 +4,7 @@ using System.Text;
 using UnityEngine;
 using SmartWarehouse.Inventory;
 using UnityEngine.UI;
+using TMPro;
 
 public class ProductCatalogListManager : MonoBehaviour
 {
@@ -14,6 +15,11 @@ public class ProductCatalogListManager : MonoBehaviour
     [SerializeField] private Button exportFileButton;
     [SerializeField] private Button refreshButton;
 
+    [Header("Filtering & Sorting UI")]
+    [SerializeField] private TMP_InputField searchInputField; // Input field for searching name, code, or labels
+    [SerializeField] private TMP_Dropdown sortDropdown;       // Dropdown for sorting options
+    [SerializeField] private TextMeshProUGUI totalProductDisplay;
+
     private List<ProductRowUI> activeRows = new List<ProductRowUI>();
     private RectTransform contentRectTransform;
 
@@ -22,12 +28,19 @@ public class ProductCatalogListManager : MonoBehaviour
         exportFileButton.onClick.AddListener(ExportCatalogToExcel);
         refreshButton.onClick.AddListener(RefreshCatalogDisplay);
         contentRectTransform = contentContainer.GetComponent<RectTransform>();
+
+        // Listen for live search updates and sorting changes
+        if (searchInputField != null) searchInputField.onValueChanged.AddListener(OnSearchValueChanged);
+        if (sortDropdown != null) sortDropdown.onValueChanged.AddListener(OnSortValueChanged);
     }
 
     private void OnDestroy()
     {
         exportFileButton.onClick.RemoveListener(ExportCatalogToExcel);
         refreshButton.onClick.RemoveListener(RefreshCatalogDisplay);
+
+        if (searchInputField != null) searchInputField.onValueChanged.RemoveListener(OnSearchValueChanged);
+        if (sortDropdown != null) sortDropdown.onValueChanged.RemoveListener(OnSortValueChanged);
     }
 
     private void OnEnable()
@@ -35,33 +48,78 @@ public class ProductCatalogListManager : MonoBehaviour
         RefreshCatalogDisplay();
     }
 
-    private void RefreshCatalogDisplay()
+    public void RefreshCatalogDisplay()
     {
         // Clear out old instantiated rows
-        //Debug.Log(activeRows.Count);
         foreach (var row in activeRows)
         {
-            Destroy(row.gameObject);
+            if (row != null) Destroy(row.gameObject);
         }
         activeRows.Clear();
 
-        if(ProductRegistry.Instance == null) return;
+        if (ProductRegistry.Instance == null) return;
         List<ProductBase> products = ProductRegistry.Instance.GetAllProducts();
+        totalProductDisplay.text = $"Total Products: {products.Count}";
+
         if (products == null) return;
 
-        // Instantiate a row prefab for each product and initialize its individual fields
-        foreach (var product in products)
+        // 1. Filtering Logic (Search by Name, Code, or Labels)
+        string searchQuery = searchInputField != null ? searchInputField.text.Trim().ToLower() : "";
+        List<ProductBase> filteredProducts = new List<ProductBase>();
+
+        foreach (var p in products)
+        {
+            bool matchesSearch = string.IsNullOrEmpty(searchQuery) ||
+                (p.productName != null && p.productName.ToLower().Contains(searchQuery)) ||
+                (p.customCode != null && p.customCode.ToLower().Contains(searchQuery)) ||
+                (p.labels != null && p.labels.Exists(l => l.ToLower().Contains(searchQuery)));
+
+            if (matchesSearch)
+            {
+                filteredProducts.Add(p);
+            }
+        }
+
+        // 2. Sorting Logic (A-Z / Z-A by Name or Code)
+        int sortMode = sortDropdown != null ? sortDropdown.value : 0;
+        switch (sortMode)
+        {
+            case 0: // Product Name (Ascending: A - Z)
+                filteredProducts.Sort((a, b) => string.Compare(a.productName, b.productName, System.StringComparison.OrdinalIgnoreCase));
+                break;
+            case 1: // Product Name (Descending: Z - A)
+                filteredProducts.Sort((a, b) => string.Compare(b.productName, a.productName, System.StringComparison.OrdinalIgnoreCase));
+                break;
+            case 2: // Custom Code (Ascending: A - Z)
+                filteredProducts.Sort((a, b) => string.Compare(a.customCode, b.customCode, System.StringComparison.OrdinalIgnoreCase));
+                break;
+            case 3: // Custom Code (Descending: Z - A)
+                filteredProducts.Sort((a, b) => string.Compare(b.customCode, a.customCode, System.StringComparison.OrdinalIgnoreCase));
+                break;
+        }
+
+        // 3. Instantiate row prefabs for filtered and sorted products
+        foreach (var product in filteredProducts)
         {
             ProductRowUI rowUI = Instantiate(rowPrefab, contentContainer);
-
             if (rowUI != null)
             {
                 rowUI.Initialize(product, productConfigUI);
+                activeRows.Add(rowUI);
             }
-            activeRows.Add(rowUI);
         }
 
         DynamicContainer(activeRows.Count);
+    }
+
+    private void OnSearchValueChanged(string query)
+    {
+        RefreshCatalogDisplay();
+    }
+
+    private void OnSortValueChanged(int index)
+    {
+        RefreshCatalogDisplay();
     }
 
     private void DynamicContainer(int numberOfItem)
@@ -69,17 +127,16 @@ public class ProductCatalogListManager : MonoBehaviour
         ChangeRectTransformSize(0f);
 
         if (numberOfItem < 3) return;
-        
-        int expandIdex = numberOfItem - 3;
-        float offset =  -(expandIdex * 200f);
-        ChangeRectTransformSize(offset);
 
+        int expandIdex = numberOfItem - 3;
+        float offset = -(expandIdex * 200f);
+        ChangeRectTransformSize(offset);
     }
 
     private void ChangeRectTransformSize(float offset)
     {
         Vector2 currentOffsetMin = contentRectTransform.offsetMin;
-        currentOffsetMin.y = offset; 
+        currentOffsetMin.y = offset;
         contentRectTransform.offsetMin = currentOffsetMin;
     }
 

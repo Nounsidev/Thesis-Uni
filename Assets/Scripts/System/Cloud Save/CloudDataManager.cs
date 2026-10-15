@@ -16,10 +16,14 @@ public static class CloudDataManager
     public static async Task LoadImportantData()
     {
         //General Player Data
+        LoadingIcon.Instance.Show();
+
         productData = await cloudDataService.LoadData<ProductData>(CloudSaveKey.GetPath(Key.ProductData));
         await TransactionManager.Instance.LoadTransactionsAsync();
         await LogManager.Instance.LoadSystemLogAsync();
         await ProductRegistry.Instance.InitializeRegistryAsync();
+
+        LoadingIcon.Instance.Hide();
     }
 
     #region Save Data

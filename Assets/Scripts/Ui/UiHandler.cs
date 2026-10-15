@@ -8,6 +8,8 @@ namespace SmartWarehouse.UI
     {
         AddProduct,
         Catalog,
+        Warehouse,
+        Stock,
         QrGenerator,
         QrScanner,
         Plc,

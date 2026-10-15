@@ -21,13 +21,12 @@ public class ProductCatalogListManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI totalProductDisplay;
 
     private List<ProductRowUI> activeRows = new List<ProductRowUI>();
-    private RectTransform contentRectTransform;
+    [SerializeField] private RectTransform contentRectTransform;
 
     private void Awake()
     {
         exportFileButton.onClick.AddListener(ExportCatalogToExcel);
         refreshButton.onClick.AddListener(RefreshCatalogDisplay);
-        contentRectTransform = contentContainer.GetComponent<RectTransform>();
 
         // Listen for live search updates and sorting changes
         if (searchInputField != null) searchInputField.onValueChanged.AddListener(OnSearchValueChanged);

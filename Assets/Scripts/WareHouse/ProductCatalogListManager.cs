@@ -10,20 +10,21 @@ public class ProductCatalogListManager : MonoBehaviour
     [Header("UI References")]
     [SerializeField] private Transform contentContainer; // Content GameObject inside your ScrollView
     [SerializeField] private ProductRowUI rowPrefab;       // Your modular row prefab with individual fields & Edit button
-    private ProductConfigUI productConfigUI; // Reference to your Add/Edit form panel
+    [SerializeField] private ProductConfigUI productConfigUI; // Reference to your Add/Edit form panel
     [SerializeField] private Button exportFileButton;
     [SerializeField] private Button refreshButton;
 
     private List<ProductRowUI> activeRows = new List<ProductRowUI>();
+    private RectTransform contentRectTransform;
 
     private void Awake()
     {
         exportFileButton.onClick.AddListener(ExportCatalogToExcel);
         refreshButton.onClick.AddListener(RefreshCatalogDisplay);
-        productConfigUI = GetComponent<ProductConfigUI>();
+        contentRectTransform = contentContainer.GetComponent<RectTransform>();
     }
 
-    private void OnDisable()
+    private void OnDestroy()
     {
         exportFileButton.onClick.RemoveListener(ExportCatalogToExcel);
         refreshButton.onClick.RemoveListener(RefreshCatalogDisplay);
@@ -37,14 +38,14 @@ public class ProductCatalogListManager : MonoBehaviour
     private void RefreshCatalogDisplay()
     {
         // Clear out old instantiated rows
+        //Debug.Log(activeRows.Count);
         foreach (var row in activeRows)
         {
-            if (row != null) Destroy(row);
+            Destroy(row.gameObject);
         }
         activeRows.Clear();
 
-        if (ProductRegistry.Instance == null) return;
-
+        if(ProductRegistry.Instance == null) return;
         List<ProductBase> products = ProductRegistry.Instance.GetAllProducts();
         if (products == null) return;
 
@@ -59,6 +60,27 @@ public class ProductCatalogListManager : MonoBehaviour
             }
             activeRows.Add(rowUI);
         }
+
+        DynamicContainer(activeRows.Count);
+    }
+
+    private void DynamicContainer(int numberOfItem)
+    {
+        ChangeRectTransformSize(0f);
+
+        if (numberOfItem < 3) return;
+        
+        int expandIdex = numberOfItem - 3;
+        float offset =  -(expandIdex * 200f);
+        ChangeRectTransformSize(offset);
+
+    }
+
+    private void ChangeRectTransformSize(float offset)
+    {
+        Vector2 currentOffsetMin = contentRectTransform.offsetMin;
+        currentOffsetMin.y = offset; 
+        contentRectTransform.offsetMin = currentOffsetMin;
     }
 
     /// <summary>

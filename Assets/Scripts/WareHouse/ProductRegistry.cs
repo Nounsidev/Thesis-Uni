@@ -24,17 +24,8 @@ namespace SmartWarehouse.Inventory
 
         private void Awake()
         {
-            if (Instance == null)
-            {
-                Instance = this;
-                DontDestroyOnLoad(gameObject);
-            }
-            else
-            {
-                Destroy(gameObject);
-                return;
-            }
-
+            
+            Instance = this;
             localCatalogPath = Path.Combine(Application.persistentDataPath, "product_catalog.json");
         }
 
@@ -107,6 +98,7 @@ namespace SmartWarehouse.Inventory
             }
             else
             {
+                //Debug.Log("NEW PRODUCT");
                 catalogContainer.products.Add(newProduct);
             }
 
@@ -116,13 +108,14 @@ namespace SmartWarehouse.Inventory
             // Push updated container JSON up to the server
             try
             {
+                //Debug.Log(catalogContainer.products[0].productName);
                 await CloudFileSaving.SaveDataAsync(Key.Catalog, catalogContainer);
-                Debug.Log($"[ProductRegistry] Product '{newProduct.customCode}' saved locally and synced to cloud.");
+                //Debug.Log($"[ProductRegistry] Product '{newProduct.customCode}' saved locally and synced to cloud.");
                 LogManager.Instance.LogEvent(LogCategory.SYSTEM_Event ,$"Product '{newProduct.customCode}' added/updated and synced to cloud.");
             }
-            catch (System.Exception ex)
+            catch 
             {
-                Debug.LogError($"[ProductRegistry] Failed to sync product catalog container to cloud: {ex.Message}");
+                //Debug.LogError($"[ProductRegistry] Failed to sync product catalog container to cloud: {ex.Message}");
                 LogManager.Instance.LogEvent(LogCategory.SYSTEM_Error, $"Product '{newProduct.customCode}' failed to sync to cloud.");
             }
         }

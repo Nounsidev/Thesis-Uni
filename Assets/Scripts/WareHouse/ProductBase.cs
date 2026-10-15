@@ -5,7 +5,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 namespace SmartWarehouse.Inventory
-{     
+{
+    [Serializable]
     public class ProductBase
     {
         [Header("Identification")]

@@ -22,6 +22,7 @@ public class ProductConfigUI : MonoBehaviour
     [Header("Buttons")]
     [SerializeField] private Button submitButton;
     [SerializeField] private Button cancelButton;
+    [SerializeField] private Button selectIconButton;
 
     [Header("UI Previews")]
     [SerializeField] private Image iconPreviewImage;
@@ -35,12 +36,14 @@ public class ProductConfigUI : MonoBehaviour
     {
         submitButton.onClick.AddListener(SubmitAndSaveNewProduct);
         cancelButton.onClick.AddListener(ClearFormFields);
+        selectIconButton.onClick.AddListener(OnClickSelectIcon);
     }
 
     private void OnDisable()
     {
         submitButton.onClick.RemoveListener(SubmitAndSaveNewProduct);
         cancelButton.onClick.RemoveListener(ClearFormFields);
+        selectIconButton.onClick.RemoveListener(OnClickSelectIcon);
     }
 
     /// <summary>
@@ -153,11 +156,8 @@ public class ProductConfigUI : MonoBehaviour
             await CloudFileSaving.SaveBytesAsync(Key.ProductIcon, iconBytes);
         }
 
-        if (ProductRegistry.Instance != null)
-        {
-            ProductRegistry.Instance.AddAndSyncNewProduct(product);
-        }
-
+        
+        ProductRegistry.Instance.AddAndSyncNewProduct(product);
         Debug.Log($"Product '{productName}' successfully {(isEditingMode ? "updated" : "created")} and synced!");
         ClearFormFields();
     }

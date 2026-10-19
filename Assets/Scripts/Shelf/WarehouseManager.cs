@@ -2,39 +2,24 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
-using System.Collections;
-using UnityEngine.Networking;
 using SmartWarehouse.Logging;
 
-public class WarehouseManager : MonoBehaviour
+public class WarehouseManager : WarehouseLayoutBase
 {
     public static WarehouseManager Instance { get; private set; }
 
     [Header("Warehouse UI Layout Container")]
-    [SerializeField] private Transform warehouseScrollViewContent;
-    [SerializeField] private ShelfRowUI shelfRowPrefab;
     [SerializeField] private Button addShelfButtonPrefab;
-    [SerializeField] private RectTransform contentRectTransform;
-
-    [Header("UI Config")]
-    [SerializeField] float shelfRowSpacing = 10f;
-    [SerializeField] Vector2 addShelfButtonDefault;
-    [SerializeField] Vector2 shelfSpawnDefault;
-    [SerializeField] Vector2 addShelfOffset;
-    [SerializeField] Vector2 shelfOffset;
+    [SerializeField] private ActiveLayout activeLayout;
 
     [Header("Action Buttons")]
     [SerializeField] private Button loadLayoutButton;
     [SerializeField] private Button saveLayoutButtonButton;
     [SerializeField] private Button setActiveLayoutButton;
 
-    [SerializeField] private WarehouseLayoutData currentLayout = new WarehouseLayoutData();
 
-    private Dictionary<int, ShelfRowUI> activeShelfUIElements = new Dictionary<int, ShelfRowUI>();
     private Button spawnedAddButtonInstance;
     private string defaultSaveFilePath;
-    private string activeLayoutId = "DefaultLayout"; // Track active session name/ID
-    private float addedSpawnPositionY = 0f;
 
     private void Awake()
     {
@@ -95,7 +80,7 @@ public class WarehouseManager : MonoBehaviour
             newShelf.slots.Add(new StockSlot
             {
                 slotIndex = i,
-                productIds = new List<string>()
+                products = new List<StorageItem>()
             });
         }
 
@@ -144,7 +129,7 @@ public class WarehouseManager : MonoBehaviour
                 targetShelf.slots.Add(new StockSlot
                 {
                     slotIndex = i,
-                    productIds = new List<string>()
+                    products = new List<StorageItem>()
                 });
             }
         }
@@ -172,43 +157,16 @@ public class WarehouseManager : MonoBehaviour
         //activeShelfUIElements[shelfId].RefreshPriorityUI();
     }
 
-    private void RebuildWarehouseUI()
+    protected override Vector2 RebuildWarehouseUI()
     {
-        foreach (var kvp in activeShelfUIElements)
-        {
-            if (kvp.Value != null) Destroy(kvp.Value.gameObject);
-        }
-        activeShelfUIElements.Clear();
-
         if (spawnedAddButtonInstance != null)
         {
             Destroy(spawnedAddButtonInstance.gameObject);
         }
+        var lastSpawnPos = base.RebuildWarehouseUI();
 
-        Vector2 lastSpawnPos = shelfSpawnDefault;
-        foreach (var shelf in currentLayout.customShelves)
-        {
-            lastSpawnPos.y -= shelf.rowCount * shelfRowSpacing;
-            if (shelf != currentLayout.customShelves[^1]) lastSpawnPos.y -= shelfOffset.y;
-        }
-        lastSpawnPos.y -= addShelfOffset.y;
-        DynamicContainer(lastSpawnPos.y);
-
-
-        lastSpawnPos = shelfSpawnDefault + new Vector2(0f, addedSpawnPositionY);
-        foreach (var shelf in currentLayout.customShelves)
-        {
-            ShelfRowUI shelfUI = Instantiate(shelfRowPrefab, warehouseScrollViewContent);
-            shelfUI.Initialize(shelf);
-            activeShelfUIElements[shelf.shelfId] = shelfUI;
-
-            shelfUI.transform.localPosition = lastSpawnPos;
-            lastSpawnPos.y -= shelf.rowCount * shelfRowSpacing;
-            if(shelf != currentLayout.customShelves[^1]) lastSpawnPos.y -= shelfOffset.y;
-        }
-
-        lastSpawnPos.y -= addShelfOffset.y; 
         SpawnAddShelfButton(lastSpawnPos);
+        return lastSpawnPos;
     }
 
     private void SpawnAddShelfButton(Vector2 spawnPos)
@@ -220,93 +178,7 @@ public class WarehouseManager : MonoBehaviour
 
         spawnedAddButtonInstance.onClick.RemoveAllListeners();
         spawnedAddButtonInstance.onClick.AddListener(CreateDefaultShelf);
-    
 
-    }
-
-    private void DynamicContainer(float lastSpawnY)
-    {
-        ChangeRectTransformSize(0f);
-
-        if (lastSpawnY > -450f)
-        {
-            addedSpawnPositionY = 0f;
-            return;
-        } 
-        
-        float offset = lastSpawnY - 100f;
-        addedSpawnPositionY = -offset/2f;
-        ChangeRectTransformSize(offset);
-    }
-
-    private void ChangeRectTransformSize(float offset)
-    {
-        Vector2 currentOffsetMin = contentRectTransform.offsetMin;
-        currentOffsetMin.y = offset;
-        contentRectTransform.offsetMin = currentOffsetMin;
-    }
-
-    // --- AUTO-STACKING STOCK LOGIC ---
-    public bool TryAddToWarehouse(string productId, int count = 1)
-    {
-        for (int c = 0; c < count; c++)
-        {
-            bool added = false;
-            foreach (var shelf in currentLayout.customShelves)
-            {
-                foreach (var slot in shelf.slots)
-                {
-                    if (!slot.IsFull)
-                    {
-                        slot.productIds.Add(productId);
-                        added = true;
-                        break;
-                    }
-                }
-                if (added) break;
-            }
-
-            if (!added)
-            {
-                RefreshAllUI();
-                SaveWarehouseLayoutLocally();
-                return false;
-            }
-        }
-
-        RefreshAllUI();
-        //SaveWarehouseLayoutLocally();
-        return true;
-    }
-
-    public bool RemoveFromWarehouse(string productId, int count = 1)
-    {
-        int removedCount = 0;
-        foreach (var shelf in currentLayout.customShelves)
-        {
-            foreach (var slot in shelf.slots)
-            {
-                while (slot.productIds.Contains(productId) && removedCount < count)
-                {
-                    slot.productIds.Remove(productId);
-                    removedCount++;
-                }
-                if (removedCount >= count) break;
-            }
-            if (removedCount >= count) break;
-        }
-
-        RefreshAllUI();
-        //SaveWarehouseLayoutLocally();
-        return removedCount > 0;
-    }
-
-    private void RefreshAllUI()
-    {
-        foreach (var kvp in activeShelfUIElements)
-        {
-            if (kvp.Value != null) kvp.Value.RefreshUI();
-        }
     }
 
     // ==========================================
@@ -358,6 +230,7 @@ public class WarehouseManager : MonoBehaviour
     public async void SetActiveLayoutAndSyncToServer()
     {
         LoadingIcon.Instance.Show();
+        activeLayout.SetActiveLayout(currentLayout);
         await CloudDataManager.SaveWarehouseLayoutData(currentLayout);
         LoadingIcon.Instance.Hide();
     }

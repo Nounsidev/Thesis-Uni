@@ -1,3 +1,4 @@
+using SmartWarehouse.Inventory;
 using SmartWarehouse.Logging;
 using System;
 using TMPro;
@@ -21,6 +22,7 @@ public class QrCodeScanner : MonoBehaviour
     [SerializeField] private RawImage cameraPreview;
     [SerializeField] private AspectRatioFitter aspectFitter;
     [SerializeField] private TextMeshProUGUI resultText;
+    [SerializeField] private ProductSorting productSorting;
 
     [Header("Scan Pipeline Mode")]
     [SerializeField] private ScanMode scanMode = ScanMode.Model1_ESPCN;
@@ -342,6 +344,9 @@ public class QrCodeScanner : MonoBehaviour
                 StorageItem scannedItem = ItemReader.ParseItemCode(result.Text);
                 TransactionManager.Instance.RecordTransaction(scannedItem, TransactionActionType.IN);
                 LogManager.Instance.LogEvent(LogCategory.QRScanner_Event, $"Scanned QR Code: {result.Text}");
+
+
+                productSorting.SortItem(scannedItem);
             }
         }
         else

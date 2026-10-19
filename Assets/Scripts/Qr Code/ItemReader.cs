@@ -19,30 +19,9 @@ public static class ItemReader
 
         return new StorageItem
         {
-            itemId = GetItemIdFromProductID(productID), 
+            itemId = productID, 
             expiredAt = expiryRaw, 
             arrivedAt = timestamp,
         };
-    }
-
-    private static int GetItemIdFromProductID(string productID)
-    {
-        try
-        {
-            // 1. Convert the string to the Enum type (ignoring case just in case)
-            if (Enum.TryParse(productID, true, out ProductType matchedCategory))
-            {
-                // 2. Cast the enum to an integer to get its index value
-                int index = (int)matchedCategory;
-                Debug.Log($"Scanned '{productID}' matched enum '{matchedCategory}' at index {index}");
-                return index;
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.LogWarning($"Failed to parse scanned code '{productID}' to enum: {ex.Message}");
-        }
-
-        return -1; // Not found
     }
 }

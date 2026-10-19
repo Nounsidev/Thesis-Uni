@@ -4801,6 +4801,74 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 827154753}
   m_CullTransparentMesh: 1
+--- !u!1 &828384963
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 828384966}
+  - component: {fileID: 828384965}
+  - component: {fileID: 828384964}
+  m_Layer: 0
+  m_Name: Sorting Manager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &828384964
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 828384963}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ad2bafdcd61c49f44bdefc8d926fad9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SmartWarehouse.Inventory.ProductSorting
+  threshold: 0
+--- !u!114 &828384965
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 828384963}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 43c963af8e60d954d9b7410c2aa47369, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ActiveLayout
+  warehouseScrollViewContent: {fileID: 0}
+  shelfRowPrefab: {fileID: 0}
+  contentRectTransform: {fileID: 0}
+  shelfRowSpacing: 10
+  addShelfButtonDefault: {x: 0, y: 0}
+  shelfSpawnDefault: {x: 0, y: 0}
+  addShelfOffset: {x: 0, y: 0}
+  shelfOffset: {x: 0, y: 0}
+  currentLayout:
+    customShelves: []
+--- !u!4 &828384966
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 828384963}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -12361,18 +12429,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WarehouseManager
   warehouseScrollViewContent: {fileID: 1248714231}
   shelfRowPrefab: {fileID: 8192340599480352340, guid: 205bc761c3458c146bbfee640201d7e9, type: 3}
-  addShelfButtonPrefab: {fileID: 8585710498904957146, guid: 1b8e77f65d8a4bd40a7bc2a9d57f52db, type: 3}
   contentRectTransform: {fileID: 1248714231}
   shelfRowSpacing: 100
   addShelfButtonDefault: {x: -695, y: 370}
   shelfSpawnDefault: {x: -695, y: 300}
   addShelfOffset: {x: 0, y: 10}
   shelfOffset: {x: 0, y: 150}
+  currentLayout:
+    customShelves: []
+  addShelfButtonPrefab: {fileID: 8585710498904957146, guid: 1b8e77f65d8a4bd40a7bc2a9d57f52db, type: 3}
+  activeLayout: {fileID: 0}
   loadLayoutButton: {fileID: 1799842087}
   saveLayoutButtonButton: {fileID: 1568547578}
   setActiveLayoutButton: {fileID: 1486819086}
-  currentLayout:
-    customShelves: []
 --- !u!1 &1880748454
 GameObject:
   m_ObjectHideFlags: 0
@@ -13385,6 +13454,7 @@ MonoBehaviour:
   cameraPreview: {fileID: 1502554391}
   aspectFitter: {fileID: 1502554393}
   resultText: {fileID: 1093133934}
+  productSorting: {fileID: 0}
   scanMode: 1
   model1Asset: {fileID: 5022602860645237092, guid: e5b457cf994b83d43b35c7e9df31b266, type: 3}
   model1Preview: {fileID: 1329014948}
@@ -14286,3 +14356,4 @@ SceneRoots:
   - {fileID: 2074639228}
   - {fileID: 1346176115}
   - {fileID: 161418741}
+  - {fileID: 828384966}

@@ -23,7 +23,7 @@ public class StockSlotUIElement : MonoBehaviour
         else
         {
             // For multi-product slots, we can display the icon of the first item (or handle dual icons)
-            string firstProductId = slot.productIds[0];
+            string firstProductId = slot.products[0].itemId;
             ProductBase product = new();
             //ProductBase product = ProductCatalogContainer.Instance.GetProductById(firstProductId);
 
@@ -36,19 +36,19 @@ public class StockSlotUIElement : MonoBehaviour
             if (quantityText != null)
             {
                 // Shows total items in this slot (up to 2)
-                quantityText.text = $"x{slot.productIds.Count}";
+                quantityText.text = $"x{slot.products.Count}";
             }
 
         }
     }
 
-    public void OnSlotClicked()
+    /*public void OnSlotClicked()
     {
         if (currentSlotData != null && !currentSlotData.IsEmpty)
         {
             // Clicking slot removes the last added item from this slot
-            string targetId = currentSlotData.productIds[currentSlotData.productIds.Count - 1];
+            string targetId = currentSlotData.products[currentSlotData.products.Count - 1].itemId;
             WarehouseManager.Instance.RemoveFromWarehouse(targetId, 1);
         }
-    }
+    }*/
 }

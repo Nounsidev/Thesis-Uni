@@ -30,15 +30,6 @@ public class CloudDataInitializer : MonoBehaviour
         bool isNewKeyCreated = false;
         await cloudDataService.LoadAllKeys();
 
-        if (CheckKey(Key.ProductData))
-        {
-            //Create Character Data pack
-            ProductData productData = new();
-
-            await CloudDataManager.SaveProductData(productData);
-            if (mode == Mode.Production) isNewKeyCreated = true;         
-        }
-
         if (CheckKey(Key.Layout))
         {
             WarehouseLayoutData layoutData = new();

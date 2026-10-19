@@ -197,5 +197,10 @@ namespace SmartWarehouse.Inventory
         {
             return catalogContainer.products;
         }
+
+        public bool CheckProductExist(string customCode)
+        {
+            return productDatabase.ContainsKey(customCode.ToUpper());
+        }
     }
 }

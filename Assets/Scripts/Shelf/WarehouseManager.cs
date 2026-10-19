@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using UnityEngine.Networking;
-using Mono.Cecil;
+using SmartWarehouse.Logging;
 
 public class WarehouseManager : MonoBehaviour
 {
@@ -30,7 +30,7 @@ public class WarehouseManager : MonoBehaviour
 
     [SerializeField] private WarehouseLayoutData currentLayout = new WarehouseLayoutData();
 
-    private Dictionary<string, ShelfRowUI> activeShelfUIElements = new Dictionary<string, ShelfRowUI>();
+    private Dictionary<int, ShelfRowUI> activeShelfUIElements = new Dictionary<int, ShelfRowUI>();
     private Button spawnedAddButtonInstance;
     private string defaultSaveFilePath;
     private string activeLayoutId = "DefaultLayout"; // Track active session name/ID
@@ -61,10 +61,18 @@ public class WarehouseManager : MonoBehaviour
 
         if (setActiveLayoutButton != null)
         {
-            setActiveLayoutButton.onClick.AddListener(() => SetActiveLayoutAndSyncToServer(activeLayoutId));
+            setActiveLayoutButton.onClick.AddListener(SetActiveLayoutAndSyncToServer);
         }
 
         //LoadWarehouseLayoutLocally();
+    }
+
+    private void OnDestroy()
+    {
+        loadLayoutButton.onClick.RemoveListener(LoadWarehouseLayoutLocally);
+        saveLayoutButtonButton.onClick.RemoveListener(SaveWarehouseLayoutLocally);
+        setActiveLayoutButton.onClick.RemoveListener(SetActiveLayoutAndSyncToServer);
+
     }
 
     public void CreateDefaultShelf()
@@ -76,7 +84,7 @@ public class WarehouseManager : MonoBehaviour
     {
         CustomShelfData newShelf = new CustomShelfData
         {
-            shelfId = System.Guid.NewGuid().ToString(),
+            shelfId = currentLayout.customShelves.Count,
             rowCount = rows,
             columnCount = cols
         };
@@ -96,22 +104,26 @@ public class WarehouseManager : MonoBehaviour
         //SaveWarehouseLayoutLocally(); // Local auto-save on structural edit
     }
 
-    public void DeleteShelf(string shelfId)
+    public void DeleteShelf(int shelfId)
     {
-        CustomShelfData targetShelf = currentLayout.customShelves.Find(s => s.shelfId == shelfId);
+        CustomShelfData targetShelf = currentLayout.customShelves[shelfId];
         if (targetShelf != null)
         {
             currentLayout.customShelves.Remove(targetShelf);
         }
-
+        RefreshShelfId();
         RebuildWarehouseUI();
         //SaveWarehouseLayoutLocally();
     }
 
-    public void ResizeShelf(string shelfId, int newRows, int newCols)
+    public void ResizeShelf(int shelfId, int newRows, int newCols)
     {
-        CustomShelfData targetShelf = currentLayout.customShelves.Find(s => s.shelfId == shelfId);
-        if (targetShelf == null) return;
+        CustomShelfData targetShelf = currentLayout.customShelves[shelfId];
+        if (targetShelf == null)
+        {
+            Debug.Log("Null Target shelf");
+            return;
+        }
 
         if (targetShelf.rowCount == newRows && targetShelf.columnCount == newCols) return;
 
@@ -143,6 +155,21 @@ public class WarehouseManager : MonoBehaviour
         }
         RebuildWarehouseUI();
         //SaveWarehouseLayoutLocally();
+    }
+
+    public void PriorityChange(int shelfId, List<string> newPrioritizedProducts)
+    {
+        Debug.Log("Shelf ID: " + shelfId);
+        CustomShelfData targetShelf = currentLayout.customShelves[shelfId];
+        if (targetShelf == null)
+        {
+            Debug.Log("Null Target shelf");
+            return; 
+        }
+
+        targetShelf.prioritizedProducts = newPrioritizedProducts;
+
+        //activeShelfUIElements[shelfId].RefreshPriorityUI();
     }
 
     private void RebuildWarehouseUI()
@@ -248,7 +275,7 @@ public class WarehouseManager : MonoBehaviour
         }
 
         RefreshAllUI();
-        SaveWarehouseLayoutLocally();
+        //SaveWarehouseLayoutLocally();
         return true;
     }
 
@@ -270,7 +297,7 @@ public class WarehouseManager : MonoBehaviour
         }
 
         RefreshAllUI();
-        SaveWarehouseLayoutLocally();
+        //SaveWarehouseLayoutLocally();
         return removedCount > 0;
     }
 
@@ -287,22 +314,27 @@ public class WarehouseManager : MonoBehaviour
     // ==========================================
     public void LoadWarehouseLayoutLocally()
     {
-        string folderPath = Application.persistentDataPath;
-        System.Diagnostics.Process.Start("explorer.exe", folderPath.Replace('/', '\\'));
-
         if (File.Exists(defaultSaveFilePath))
         {
             string json = File.ReadAllText(defaultSaveFilePath);
             currentLayout = JsonUtility.FromJson<WarehouseLayoutData>(json) ?? new WarehouseLayoutData();
-            Debug.Log("Warehouse layout loaded locally.");
+            LogManager.Instance.LogEvent(LogCategory.SYSTEM_Event, $"Warehouse layout loaded locally");
         }
         else
         {
             currentLayout = new WarehouseLayoutData();
-            Debug.LogWarning("No local save file found. Initialized blank layout.");
+            LogManager.Instance.LogEvent(LogCategory.SYSTEM_Error, $"No warehouse layout found locally");
         }
-
+        
         RebuildWarehouseUI();
+    }
+
+    private void RefreshShelfId()
+    { 
+        foreach(var shelf in currentLayout.customShelves)
+        {
+            shelf.shelfId = currentLayout.customShelves.IndexOf(shelf);
+        }
     }
 
     // ==========================================
@@ -312,45 +344,27 @@ public class WarehouseManager : MonoBehaviour
     {
         string json = JsonUtility.ToJson(currentLayout, true);
         File.WriteAllText(defaultSaveFilePath, json);
-        Debug.Log($"Warehouse layout saved locally to: {defaultSaveFilePath}");
+        //Debug.Log($"Warehouse layout saved locally to: {defaultSaveFilePath}");
+        LogManager.Instance.LogEvent(LogCategory.SYSTEM_Event, $"Warehouse layout saved locally");
+
+        // Open the folder in Windows Explorer so you can see the saved file
+        //string folderPath = Application.persistentDataPath;
+        //System.Diagnostics.Process.Start("explorer.exe", folderPath.Replace('/', '\\'));
     }
 
     // ==========================================
     // 3. SET BUTTON ACTION: Set active layout AND sync to server
     // ==========================================
-    public void SetActiveLayoutAndSyncToServer(string layoutId)
+    public async void SetActiveLayoutAndSyncToServer()
     {
-        activeLayoutId = layoutId;
-        string json = JsonUtility.ToJson(currentLayout, true);
-
-        // Ensure local file is current before pushing to server
-        File.WriteAllText(defaultSaveFilePath, json);
-
-        // Trigger network sync request to backend server
-        StartCoroutine(SyncLayoutToServer(json));
+        LoadingIcon.Instance.Show();
+        await CloudDataManager.SaveWarehouseLayoutData(currentLayout);
+        LoadingIcon.Instance.Hide();
     }
 
-    private IEnumerator SyncLayoutToServer(string jsonPayload)
-    {
-        string serverUrl = "https://your-backend-api.com/api/warehouse/save"; // Replace with your endpoint
-
-        using (UnityWebRequest request = new UnityWebRequest(serverUrl, "POST"))
-        {
-            byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonPayload);
-            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
-
-            yield return request.SendWebRequest();
-
-            if (request.result == UnityWebRequest.Result.Success)
-            {
-                Debug.Log($"Layout '{activeLayoutId}' successfully set as active and synced to server!");
-            }
-            else
-            {
-                Debug.LogError($"Failed to sync active layout to server: {request.error}");
-            }
-        }
+    public void LoadLayoutData(WarehouseLayoutData layoutData)
+    { 
+        currentLayout = layoutData;
+        RebuildWarehouseUI();
     }
 }

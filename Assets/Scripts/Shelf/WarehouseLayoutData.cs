@@ -12,10 +12,11 @@ public class WarehouseLayoutData
 [Serializable]
 public class CustomShelfData
 {
-    public string shelfId;
+    public int shelfId;
     public int rowCount;
     public int columnCount;
     public List<StockSlot> slots = new List<StockSlot>();
+    public List<string> prioritizedProducts = new List<string>();
 }
 
 [Serializable]

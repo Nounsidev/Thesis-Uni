@@ -1,3 +1,4 @@
+using System.IO;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,18 +12,20 @@ public class QrCodeGenerator : MonoBehaviour
     [SerializeField] RawImage rawImageReceiver;
     [SerializeField] TMP_InputField inputField;
     [SerializeField] Button convertButton;
-
+    [SerializeField] Button exportButton;
     Texture2D storedEncodedTexture;
 
     private void Start()
     {
         CreateQrTexture();
         convertButton.onClick.AddListener(ConvertButton);
+        exportButton.onClick.AddListener(ExportTexture);
     }
 
     private void OnDisable()
     {
         convertButton.onClick.RemoveListener(ConvertButton);
+        exportButton.onClick.RemoveListener(ExportTexture);
     }
 
     private void CreateQrTexture()
@@ -52,7 +55,7 @@ public class QrCodeGenerator : MonoBehaviour
 
     private void ConvertButton()
     {
-        Debug.Log("Encoding...");
+        //Debug.Log("Encoding...");
         EncodeTextToQrCode();
     }
 
@@ -68,5 +71,14 @@ public class QrCodeGenerator : MonoBehaviour
         rawImageReceiver.texture = storedEncodedTexture;
     }
 
+    private void ExportTexture()
+    {
+        Texture2D texture = rawImageReceiver.texture as Texture2D;
+        if (texture == null) return;
 
+        
+        byte[] bytes = texture.EncodeToPNG();
+        string savePath = Path.Combine(ProjectPath.GetPath(), "ExportedQRCode.png");
+        File.WriteAllBytes(savePath, bytes);
+    }
 }

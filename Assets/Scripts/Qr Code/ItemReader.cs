@@ -7,12 +7,12 @@ public static class ItemReader
 {
     public static StorageItem ParseItemCode(string rawCode)
     {
-        // Example rawCode: "PRH-CHK01-261015"
+        // Example rawCode: "PK=CBF-261015"
         string[] parts = rawCode.Split('-');
 
         if (parts.Length < 2) return null;
          
-        string productID = parts[0];    // "CHK01"
+        string productID = parts[0];   
         string expiryRaw = parts[1];    // "261015" (YYMMDD)
         string timestamp = DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss");
 

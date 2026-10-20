@@ -345,13 +345,11 @@ public class QrCodeScanner : MonoBehaviour
                 TransactionManager.Instance.RecordTransaction(scannedItem, TransactionActionType.IN);
                 LogManager.Instance.LogEvent(LogCategory.QRScanner_Event, $"Scanned QR Code: {result.Text}");
 
-
                 productSorting.SortItem(scannedItem);
             }
         }
         else
         {
-            Debug.Log($"Not getting any results using mode: {scanMode}");
             LogManager.Instance.LogEvent(LogCategory.QRScanner_Error, $"No QR Code detected using mode: {scanMode}");
         }
     }

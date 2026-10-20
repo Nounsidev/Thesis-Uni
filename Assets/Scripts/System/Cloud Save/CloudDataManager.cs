@@ -22,8 +22,6 @@ public static class CloudDataManager
         await LogManager.Instance.LoadSystemLogAsync();
         await ProductRegistry.Instance.InitializeRegistryAsync();
 
-
-        ActiveLayout.Instance.LoadStorageData(layoutData);
         LoadingIcon.Instance.Hide();
     }
 

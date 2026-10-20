@@ -23,35 +23,36 @@ public class ShelfRowUI : MonoBehaviour
     private List<StockSlotUIElement> spawnedSlotElements = new List<StockSlotUIElement>();
     private bool isInitializing = false;
 
-    public void Initialize(CustomShelfData data)
+    public void Initialize(CustomShelfData data, bool isEdit)
     {
         isInitializing = false;
         shelfData = data;
         Debug.Log("Shelf Init");
         // Set input fields to current dimensions without triggering infinite callbacks
-        if (rowInputField != null)
+
+        rowInputField.text = shelfData.rowCount.ToString();
+        columnInputField.text = shelfData.columnCount.ToString();
+        RefreshPriorityUI();
+ 
+
+        if(!isEdit)
         {
-            rowInputField.text = shelfData.rowCount.ToString();
+            rowInputField.interactable = false;
+            columnInputField.interactable = false;
+            priorityInputField.interactable = false;
+            deleteShelfButton.gameObject.SetActive(false);
+        }
+        else 
+        {
             rowInputField.onEndEdit.RemoveListener(OnDimensionsChanged);
             rowInputField.onEndEdit.AddListener(OnDimensionsChanged);
-        }
 
-        if (columnInputField != null)
-        {
-            columnInputField.text = shelfData.columnCount.ToString();
             columnInputField.onEndEdit.RemoveListener(OnDimensionsChanged);
             columnInputField.onEndEdit.AddListener(OnDimensionsChanged);
-        }
 
-        if (priorityInputField != null)
-        { 
-            RefreshPriorityUI();
             priorityInputField.onEndEdit.RemoveListener(OnPriorityChange);
             priorityInputField.onEndEdit.AddListener(OnPriorityChange);
-        }
 
-        if (deleteShelfButton != null)
-        {
             deleteShelfButton.onClick.RemoveAllListeners();
             deleteShelfButton.onClick.AddListener(() =>
             {

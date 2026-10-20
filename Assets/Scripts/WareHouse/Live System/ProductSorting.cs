@@ -10,7 +10,7 @@ namespace SmartWarehouse.Inventory
 
     public class ProductSorting : MonoBehaviour
     {
-        [SerializeField] int threshold;
+        [SerializeField] int expiryThreshold;
         ActiveLayout activeLayout;
 
         private void Awake()
@@ -70,7 +70,7 @@ namespace SmartWarehouse.Inventory
             {
                 int dayRemaining = (expiry - DateTime.Now).Days;
 
-                if (dayRemaining > threshold) return ExpiryStage.Far;
+                if (dayRemaining > expiryThreshold) return ExpiryStage.Far;
                 else return ExpiryStage.Close;
             }
             return ExpiryStage.Close;

@@ -138,7 +138,7 @@ public class WarehouseManager : WarehouseLayoutBase
         {
             targetShelf.slots[i].slotIndex = i;
         }
-        RebuildWarehouseUI();
+        RebuildWarehouseUI(true);
         //SaveWarehouseLayoutLocally();
     }
 
@@ -157,13 +157,13 @@ public class WarehouseManager : WarehouseLayoutBase
         //activeShelfUIElements[shelfId].RefreshPriorityUI();
     }
 
-    protected override Vector2 RebuildWarehouseUI()
+    protected override Vector2 RebuildWarehouseUI(bool isEdit = true)
     {
         if (spawnedAddButtonInstance != null)
         {
             Destroy(spawnedAddButtonInstance.gameObject);
         }
-        var lastSpawnPos = base.RebuildWarehouseUI();
+        var lastSpawnPos = base.RebuildWarehouseUI(isEdit);
 
         SpawnAddShelfButton(lastSpawnPos);
         return lastSpawnPos;

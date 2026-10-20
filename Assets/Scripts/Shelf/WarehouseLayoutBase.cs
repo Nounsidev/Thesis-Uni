@@ -20,7 +20,7 @@ public class WarehouseLayoutBase : MonoBehaviour
     protected Dictionary<int, ShelfRowUI> activeShelfUIElements = new Dictionary<int, ShelfRowUI>();
 
 
-    protected virtual Vector2 RebuildWarehouseUI()
+    protected virtual Vector2 RebuildWarehouseUI(bool isEdit)
     {
         foreach (var kvp in activeShelfUIElements)
         {
@@ -42,7 +42,7 @@ public class WarehouseLayoutBase : MonoBehaviour
         foreach (var shelf in currentLayout.customShelves)
         {
             ShelfRowUI shelfUI = Instantiate(shelfRowPrefab, warehouseScrollViewContent);
-            shelfUI.Initialize(shelf);
+            shelfUI.Initialize(shelf, isEdit);
             activeShelfUIElements[shelf.shelfId] = shelfUI;
 
             shelfUI.transform.localPosition = lastSpawnPos;

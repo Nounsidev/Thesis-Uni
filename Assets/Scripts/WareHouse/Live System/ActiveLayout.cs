@@ -1,13 +1,15 @@
+using UnityEngine.UI;
 using UnityEngine;
+
 
 public class ActiveLayout : WarehouseLayoutBase
 {
+    [Header("Reference")]
     [SerializeField] WarehouseManager warehouseEditor;
-    public static ActiveLayout Instance { get; private set; }
 
-    private void Awake()
+    private void Start()
     {
-        Instance = this;
+        LoadStorageData(CloudDataManager.GetWarehouseLayoutData());
     }
 
     public void SetActiveLayout(WarehouseLayoutData layout)
@@ -29,6 +31,8 @@ public class ActiveLayout : WarehouseLayoutBase
             slot.products[0] = product;
         else slot.products[1] = product;
 
+        RefreshAllUI();
+
         SaveNewChange();
     }
 
@@ -38,6 +42,8 @@ public class ActiveLayout : WarehouseLayoutBase
 
         int id = slot.products.IndexOf(product);
         slot.products[id] = null;
+
+        RefreshAllUI();
 
         SaveNewChange();
     }
@@ -49,9 +55,9 @@ public class ActiveLayout : WarehouseLayoutBase
         LoadingIcon.Instance.Hide();
     }
 
-    protected override Vector2 RebuildWarehouseUI()
+    protected override Vector2 RebuildWarehouseUI(bool isEdit = false)
     {
-        base.RebuildWarehouseUI();
+        base.RebuildWarehouseUI(isEdit);
         RefreshAllUI();
         return Vector2.zero;
     }

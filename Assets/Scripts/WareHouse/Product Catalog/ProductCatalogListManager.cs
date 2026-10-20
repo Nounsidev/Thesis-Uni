@@ -9,19 +9,19 @@ using TMPro;
 public class ProductCatalogListManager : MonoBehaviour
 {
     [Header("UI References")]
-    [SerializeField] private Transform contentContainer; // Content GameObject inside your ScrollView
-    [SerializeField] private ProductRowUI rowPrefab;       // Your modular row prefab with individual fields & Edit button
-    [SerializeField] private ProductConfigUI productConfigUI; // Reference to your Add/Edit form panel
-    [SerializeField] private Button exportFileButton;
-    [SerializeField] private Button refreshButton;
+    [SerializeField] protected Transform contentContainer; // Content GameObject inside your ScrollView
+    [SerializeField] protected ProductRowUI rowPrefab;       // Your modular row prefab with individual fields & Edit button
+    [SerializeField] protected ProductConfigUI productConfigUI; // Reference to your Add/Edit form panel
+    [SerializeField] protected Button exportFileButton;
+    [SerializeField] protected Button refreshButton;
 
     [Header("Filtering & Sorting UI")]
-    [SerializeField] private TMP_InputField searchInputField; // Input field for searching name, code, or labels
-    [SerializeField] private TMP_Dropdown sortDropdown;       // Dropdown for sorting options
-    [SerializeField] private TextMeshProUGUI totalProductDisplay;
+    [SerializeField] protected TMP_InputField searchInputField; // Input field for searching name, code, or labels
+    [SerializeField] protected TMP_Dropdown sortDropdown;       // Dropdown for sorting options
+    [SerializeField] protected TextMeshProUGUI totalProductDisplay;
 
-    private List<ProductRowUI> activeRows = new List<ProductRowUI>();
-    [SerializeField] private RectTransform contentRectTransform;
+    protected List<ProductRowUI> activeRows = new List<ProductRowUI>();
+    [SerializeField] protected RectTransform contentRectTransform;
 
     private void Awake()
     {
@@ -47,7 +47,7 @@ public class ProductCatalogListManager : MonoBehaviour
         RefreshCatalogDisplay();
     }
 
-    public void RefreshCatalogDisplay()
+    public virtual void RefreshCatalogDisplay()
     {
         // Clear out old instantiated rows
         foreach (var row in activeRows)
@@ -142,7 +142,7 @@ public class ProductCatalogListManager : MonoBehaviour
     /// <summary>
     /// Hook this to your EXPORT FILE button.
     /// </summary>
-    private void ExportCatalogToExcel()
+    protected virtual void ExportCatalogToExcel()
     {
         if (ProductRegistry.Instance == null) return;
         List<ProductBase> allProducts = ProductRegistry.Instance.GetAllProducts();
@@ -158,7 +158,7 @@ public class ProductCatalogListManager : MonoBehaviour
         }
 
         string fileName = $"Product_Catalog_{System.DateTime.Now:yyyyMMdd_HHmmss}.csv";
-        string filePath = Path.Combine(Application.persistentDataPath, fileName);
+        string filePath = Path.Combine(ProjectPath.GetPath(), fileName);
         File.WriteAllText(filePath, csvBuilder.ToString(), Encoding.UTF8);
 
         Debug.Log($"[Catalog] Exported to CSV at: {filePath}");

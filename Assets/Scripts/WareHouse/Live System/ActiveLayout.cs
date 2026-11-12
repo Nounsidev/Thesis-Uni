@@ -12,20 +12,20 @@ public class ActiveLayout : WarehouseLayoutBase
         LoadStorageData(CloudDataManager.GetWarehouseLayoutData());
     }
 
-    public void SetActiveLayout(WarehouseLayoutData layout)
+    public void SetActiveLayout(WarehouseLayoutData data)
     {
-        currentLayout = layout;
+        currentWarehouseData = data;
     }    
 
     public WarehouseLayoutData GetWarehouseData()
     {
-        return currentLayout;
+        return currentWarehouseData;
     }
 
     // --- AUTO-STACKING STOCK LOGIC ---
     public void AddToWarehouse(StorageItem product, int shelfId, int slotId)
     {
-        StockSlot slot = currentLayout.customShelves[shelfId].slots[slotId];
+        StockSlot slot = currentWarehouseData.customShelves[shelfId].slots[slotId];
 
         if(slot.IsEmpty)
             slot.products[0] = product;
@@ -38,7 +38,7 @@ public class ActiveLayout : WarehouseLayoutBase
 
     public void RemoveFromWarehouse(StorageItem product, int shelfId, int slotId)
     {
-        StockSlot slot = currentLayout.customShelves[shelfId].slots[slotId];
+        StockSlot slot = currentWarehouseData.customShelves[shelfId].slots[slotId];
 
         int id = slot.products.IndexOf(product);
         slot.products[id] = null;
@@ -51,7 +51,7 @@ public class ActiveLayout : WarehouseLayoutBase
     private async void SaveNewChange()
     {
         LoadingIcon.Instance.Show();
-        await CloudDataManager.SaveWarehouseLayoutData(currentLayout);
+        await CloudDataManager.SaveWarehouseLayoutData(currentWarehouseData);
         LoadingIcon.Instance.Hide();
     }
 
@@ -72,7 +72,7 @@ public class ActiveLayout : WarehouseLayoutBase
 
     public void LoadStorageData(WarehouseLayoutData layoutData)
     {
-        currentLayout = layoutData;
+        currentWarehouseData = layoutData;
         warehouseEditor.LoadLayoutData(layoutData);
 
         RebuildWarehouseUI();

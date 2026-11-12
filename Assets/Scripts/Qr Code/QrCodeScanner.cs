@@ -140,7 +140,11 @@ public class QrCodeScanner : MonoBehaviour
             worker1 = new Worker(model1, BackendType.GPUCompute);
 
             lrRT1 = RenderTexture.GetTemporary(model1InputRes, model1InputRes, 0, RenderTextureFormat.ARGB32);
+            lrRT1.filterMode = FilterMode.Bilinear; // <--- Crucial: prevent pixelated downsampling blockiness
+
             hrRT1 = RenderTexture.GetTemporary(model1OutputRes, model1OutputRes, 0, RenderTextureFormat.ARGB32);
+            hrRT1.filterMode = FilterMode.Bilinear;
+
             readbackTex1 = new Texture2D(model1OutputRes, model1OutputRes, TextureFormat.RGB24, false);
 
             if (model1Preview != null) model1Preview.texture = hrRT1;
@@ -153,7 +157,11 @@ public class QrCodeScanner : MonoBehaviour
             worker2 = new Worker(model2, BackendType.GPUCompute);
 
             lrRT2 = RenderTexture.GetTemporary(model2InputRes, model2InputRes, 0, RenderTextureFormat.ARGB32);
+            lrRT2.filterMode = FilterMode.Bilinear; // <--- Crucial
+
             hrRT2 = RenderTexture.GetTemporary(model2OutputRes, model2OutputRes, 0, RenderTextureFormat.ARGB32);
+            hrRT2.filterMode = FilterMode.Bilinear;
+
             readbackTex2 = new Texture2D(model2OutputRes, model2OutputRes, TextureFormat.RGB24, false);
 
             if (model2Preview != null) model2Preview.texture = hrRT2;
@@ -169,7 +177,7 @@ public class QrCodeScanner : MonoBehaviour
 
             if (cameraTexture.videoVerticallyMirrored)
             {
-                cameraPreview.rectTransform.localScale = new Vector3(1, -1, 1);
+                cameraPreview.rectTransform.localScale = new Vector3(1, 1, 1);
             }
             else
             {
@@ -224,30 +232,59 @@ public class QrCodeScanner : MonoBehaviour
         }
     }
 
-    private Result ProcessModelInference(Worker worker, RenderTexture lrRT, RenderTexture hrRT, Texture2D readbackTex, int inputRes, int outputRes)
-    {
-        // 1. Center-crop camera feed to 1:1 aspect ratio
-        float aspect = (float)cameraTexture.width / cameraTexture.height;
-        Vector2 scale = aspect > 1.0f ? new Vector2(1.0f / aspect, 1.0f) : new Vector2(1.0f, aspect);
-        Vector2 offset = aspect > 1.0f ? new Vector2((1.0f - scale.x) * 0.5f, 0.0f) : new Vector2(0.0f, (1.0f - scale.y) * 0.5f);
 
+    [Header("Viewfinder / ROI Settings")]
+    [SerializeField, Range(0.1f, 1.0f)] private float viewfinderSizeNormalized = 0.5f; // Fraction of the screen the box covers (e.g. 0.5 = 50% of screen)
+
+    private Result ProcessModelInference(
+        Worker worker,
+        RenderTexture lrRT,
+        RenderTexture hrRT,
+        Texture2D readbackTex,
+        int inputRes,
+        int outputRes)
+    {
+        // 1. Calculate precise sub-region crop (Center Viewfinder ROI) from the camera feed
+        float videoWidth = cameraTexture.width;
+        float videoHeight = cameraTexture.height;
+        float aspect = videoWidth / videoHeight;
+
+        // Determine the bounds of the square viewfinder box relative to the video texture
+        float cropSize = Mathf.Min(videoWidth, videoHeight) * viewfinderSizeNormalized;
+
+        // Normalize scale and offset for Graphics.Blit to extract exactly the center box
+        float scaleX = cropSize / videoWidth;
+        float scaleY = cropSize / videoHeight;
+
+        Vector2 scale = new Vector2(scaleX, scaleY);
+        Vector2 offset = new Vector2((1f - scaleX) * 0.5f, (1f - scaleY) * 0.5f);
+
+        // Blit only the viewfinder region into our low-res model input render texture
         Graphics.Blit(cameraTexture, lrRT, scale, offset);
 
-        // 2. Sentis Tensor Conversion & Execution
-        var transform = new TextureTransform().SetTensorLayout(TensorLayout.NCHW);
+        // 2. Convert input texture to NCHW tensor & run inference
+        var inputTransform = new TextureTransform()
+            .SetTensorLayout(TensorLayout.NCHW);
 
         using (Tensor<float> inputTensor = new Tensor<float>(new TensorShape(1, 3, inputRes, inputRes)))
         {
-            TextureConverter.ToTensor(lrRT, inputTensor, transform);
+            TextureConverter.ToTensor(lrRT, inputTensor, inputTransform);
+
             worker.Schedule(inputTensor);
 
             using (Tensor<float> outputTensor = worker.PeekOutput() as Tensor<float>)
             {
-                TextureConverter.RenderToTexture(outputTensor, hrRT);
+                if (outputTensor == null)
+                    throw new Exception("Model output is not Tensor<float>.");
+
+                var outputTransform = new TextureTransform()
+                    .SetTensorLayout(TensorLayout.NCHW);
+
+                TextureConverter.RenderToTexture(outputTensor, hrRT, outputTransform);
             }
         }
 
-        // 3. Read back reconstructed high-res texture
+        // 3. Read back high-res texture for ZXing decoding
         RenderTexture.active = hrRT;
         readbackTex.ReadPixels(new Rect(0, 0, outputRes, outputRes), 0, 0);
         readbackTex.Apply();
@@ -255,34 +292,31 @@ public class QrCodeScanner : MonoBehaviour
 
         Color32[] rawPixels = readbackTex.GetPixels32();
 
-        // 4. Allocate padded canvas with white background (Quiet Zone)
-        int padding = 32;
-        int paddedRes = outputRes + (padding * 2);
+        // 4. Add a white quiet zone for QR decoding
+        const int padding = 32;
+        int paddedRes = outputRes + padding * 2;
         Color32[] paddedPixels = new Color32[paddedRes * paddedRes];
         Color32 white = new Color32(255, 255, 255, 255);
 
-        for (int i = 0; i < paddedPixels.Length; i++) paddedPixels[i] = white;
+        for (int i = 0; i < paddedPixels.Length; i++)
+            paddedPixels[i] = white;
 
-        // 5. FLIP MOVEMENT (Y-AXIS INVERSION):
-        // Maps bottom rows to top rows during pixel transfer without modifying UI Transforms
         for (int y = 0; y < outputRes; y++)
         {
-            // Source row scanned normally from top to bottom
-            int srcRow = y * outputRes;
-
-            // Destination row mapped in reverse order (bottom-up)
-            int dstY = (outputRes - 1 - y) + padding;
+            int srcRow = (outputRes - 1 - y) * outputRes;
+            int dstY = y + padding;
             int dstRow = dstY * paddedRes;
 
             for (int x = 0; x < outputRes; x++)
             {
-                paddedPixels[dstRow + (x + padding)] = rawPixels[srcRow + x];
+                paddedPixels[dstRow + x + padding] = rawPixels[srcRow + x];
             }
         }
 
-        // 6. Decode vertically re-ordered pixels with ZXing
+        // 5. Decode reconstructed QR image via ZXing
         return barcodeReader.Decode(paddedPixels, paddedRes, paddedRes);
     }
+
 
     private void DecodeWithModel1()
     {

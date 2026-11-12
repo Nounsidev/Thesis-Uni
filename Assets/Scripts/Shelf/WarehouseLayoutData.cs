@@ -7,6 +7,14 @@ using UnityEngine;
 public class WarehouseLayoutData
 {
     public List<CustomShelfData> customShelves = new List<CustomShelfData>();
+
+    public int GetTotalProducts()
+    {
+        int totalProduct = 0;
+        foreach (var shelf in customShelves)
+            totalProduct += shelf.GetProductCount();
+        return totalProduct;
+    }
 }
 
 [Serializable]

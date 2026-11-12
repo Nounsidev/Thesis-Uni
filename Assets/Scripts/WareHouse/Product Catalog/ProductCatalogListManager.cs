@@ -23,7 +23,7 @@ public class ProductCatalogListManager : MonoBehaviour
     protected List<ProductRowUI> activeRows = new List<ProductRowUI>();
     [SerializeField] protected RectTransform contentRectTransform;
 
-    private void Awake()
+    protected virtual void Awake()
     {
         exportFileButton.onClick.AddListener(ExportCatalogToExcel);
         refreshButton.onClick.AddListener(RefreshCatalogDisplay);
@@ -58,7 +58,7 @@ public class ProductCatalogListManager : MonoBehaviour
 
         if (ProductRegistry.Instance == null) return;
         List<ProductBase> products = ProductRegistry.Instance.GetAllProducts();
-        totalProductDisplay.text = $"Total Products: {products.Count}";
+        totalProductDisplay.text = products.Count.ToString();
 
         if (products == null) return;
 
@@ -103,7 +103,7 @@ public class ProductCatalogListManager : MonoBehaviour
             ProductRowUI rowUI = Instantiate(rowPrefab, contentContainer);
             if (rowUI != null)
             {
-                rowUI.Initialize(product, productConfigUI);
+                rowUI.Initialize(product, productConfigUI, false, 0);
                 activeRows.Add(rowUI);
             }
         }
@@ -121,7 +121,7 @@ public class ProductCatalogListManager : MonoBehaviour
         RefreshCatalogDisplay();
     }
 
-    private void DynamicContainer(int numberOfItem)
+    protected void DynamicContainer(int numberOfItem)
     {
         ChangeRectTransformSize(0f);
 

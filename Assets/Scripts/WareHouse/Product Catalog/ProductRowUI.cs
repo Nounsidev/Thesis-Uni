@@ -13,12 +13,15 @@ public class ProductRowUI : MonoBehaviour
     [SerializeField] private TMP_Text warningExpiryText;
     [SerializeField] private TMP_Text warningStockText;
     [SerializeField] private TMP_Text labelsText;
+    [SerializeField] private TMP_Text totalProductText;
+    [SerializeField] private GameObject warningText;
     [SerializeField] private Image iconImage;
     [SerializeField] private Sprite defaultPlaceholderSprite;
 
     [Header("Row Action Buttons")]
     [SerializeField] private Button editButton;
     [SerializeField] private Button deleteButton; // Drag your row's Delete button here
+    [SerializeField] private Button displayButton;
 
     private ProductBase assignedProduct;
     private ProductConfigUI configUIController;
@@ -26,11 +29,12 @@ public class ProductRowUI : MonoBehaviour
     public void OnDestroy()
     {       
         editButton.onClick.RemoveListener(OnClickEditRow);    
-        deleteButton.onClick.RemoveListener(OnClickDeleteRow);       
+        deleteButton.onClick.RemoveListener(OnClickDeleteRow);
+        displayButton.onClick.AddListener(OnClickDropDownButton);
     }
 
 
-    public void Initialize(ProductBase product, ProductConfigUI configUI)
+    public void Initialize(ProductBase product, ProductConfigUI configUI, bool isDisplayOnly, int totalProducts)
     {
         assignedProduct = product;
         configUIController = configUI;
@@ -39,6 +43,8 @@ public class ProductRowUI : MonoBehaviour
         if (nameAndCodeText != null) nameAndCodeText.text = $"{product.productName} - {product.customCode}";
         if (warningExpiryText != null) warningExpiryText.text = $"WARNING EXPIRY: {product.minDaysBeforeExpiryWarning}";
         if (warningStockText != null) warningStockText.text = $"WARNING STOCK: {product.minStockWarningThreshold}";
+        totalProductText.text = $"TOTAL: {totalProducts}";
+
         if (labelsText != null)
         {
             string labelsFormatted = (product.labels != null && product.labels.Count > 0) ? string.Join(", ", product.labels) : "None";
@@ -64,17 +70,18 @@ public class ProductRowUI : MonoBehaviour
             }
         }
 
-        // Bind Edit button
-        if (editButton != null)
+        if(!isDisplayOnly)
         {
             editButton.onClick.AddListener(OnClickEditRow);
-        }
-
-        // Bind Delete button
-        if (deleteButton != null)
-        {
-            
             deleteButton.onClick.AddListener(OnClickDeleteRow);
+            totalProductText.gameObject.SetActive(false);
+        }
+        else
+        {
+            editButton.gameObject.SetActive(false);
+            deleteButton.gameObject.SetActive(false);
+            if(totalProducts <= product.minStockWarningThreshold)
+                warningText.gameObject.SetActive(true);
         }
     }
 
@@ -93,5 +100,10 @@ public class ProductRowUI : MonoBehaviour
         {
             ProductRegistry.Instance.DeleteProduct(assignedProduct.customCode);
         }
+    }
+
+    private void OnClickDropDownButton()
+    {
+        LiveProductCatalog.Instance.ToggleUiDisplay(assignedProduct.customCode);
     }
 }

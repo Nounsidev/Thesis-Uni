@@ -69,7 +69,7 @@ public class WarehouseManager : WarehouseLayoutBase
     {
         CustomShelfData newShelf = new CustomShelfData
         {
-            shelfId = currentLayout.customShelves.Count,
+            shelfId = currentWarehouseData.customShelves.Count,
             rowCount = rows,
             columnCount = cols
         };
@@ -84,17 +84,17 @@ public class WarehouseManager : WarehouseLayoutBase
             });
         }
 
-        currentLayout.customShelves.Add(newShelf);
+        currentWarehouseData.customShelves.Add(newShelf);
         RebuildWarehouseUI();
         //SaveWarehouseLayoutLocally(); // Local auto-save on structural edit
     }
 
     public void DeleteShelf(int shelfId)
     {
-        CustomShelfData targetShelf = currentLayout.customShelves[shelfId];
+        CustomShelfData targetShelf = currentWarehouseData.customShelves[shelfId];
         if (targetShelf != null)
         {
-            currentLayout.customShelves.Remove(targetShelf);
+            currentWarehouseData.customShelves.Remove(targetShelf);
         }
         RefreshShelfId();
         RebuildWarehouseUI();
@@ -103,7 +103,7 @@ public class WarehouseManager : WarehouseLayoutBase
 
     public void ResizeShelf(int shelfId, int newRows, int newCols)
     {
-        CustomShelfData targetShelf = currentLayout.customShelves[shelfId];
+        CustomShelfData targetShelf = currentWarehouseData.customShelves[shelfId];
         if (targetShelf == null)
         {
             Debug.Log("Null Target shelf");
@@ -145,7 +145,7 @@ public class WarehouseManager : WarehouseLayoutBase
     public void PriorityChange(int shelfId, List<string> newPrioritizedProducts)
     {
         Debug.Log("Shelf ID: " + shelfId);
-        CustomShelfData targetShelf = currentLayout.customShelves[shelfId];
+        CustomShelfData targetShelf = currentWarehouseData.customShelves[shelfId];
         if (targetShelf == null)
         {
             Debug.Log("Null Target shelf");
@@ -189,12 +189,12 @@ public class WarehouseManager : WarehouseLayoutBase
         if (File.Exists(defaultSaveFilePath))
         {
             string json = File.ReadAllText(defaultSaveFilePath);
-            currentLayout = JsonUtility.FromJson<WarehouseLayoutData>(json) ?? new WarehouseLayoutData();
+            currentWarehouseData = JsonUtility.FromJson<WarehouseLayoutData>(json) ?? new WarehouseLayoutData();
             LogManager.Instance.LogEvent(LogCategory.SYSTEM_Event, $"Warehouse layout loaded locally");
         }
         else
         {
-            currentLayout = new WarehouseLayoutData();
+            currentWarehouseData = new WarehouseLayoutData();
             LogManager.Instance.LogEvent(LogCategory.SYSTEM_Error, $"No warehouse layout found locally");
         }
         
@@ -203,9 +203,9 @@ public class WarehouseManager : WarehouseLayoutBase
 
     private void RefreshShelfId()
     { 
-        foreach(var shelf in currentLayout.customShelves)
+        foreach(var shelf in currentWarehouseData.customShelves)
         {
-            shelf.shelfId = currentLayout.customShelves.IndexOf(shelf);
+            shelf.shelfId = currentWarehouseData.customShelves.IndexOf(shelf);
         }
     }
 
@@ -214,7 +214,7 @@ public class WarehouseManager : WarehouseLayoutBase
     // ==========================================
     public void SaveWarehouseLayoutLocally()
     {
-        string json = JsonUtility.ToJson(currentLayout, true);
+        string json = JsonUtility.ToJson(currentWarehouseData, true);
         File.WriteAllText(defaultSaveFilePath, json);
         //Debug.Log($"Warehouse layout saved locally to: {defaultSaveFilePath}");
         LogManager.Instance.LogEvent(LogCategory.SYSTEM_Event, $"Warehouse layout saved locally");
@@ -230,14 +230,14 @@ public class WarehouseManager : WarehouseLayoutBase
     public async void SetActiveLayoutAndSyncToServer()
     {
         LoadingIcon.Instance.Show();
-        activeLayout.SetActiveLayout(currentLayout);
-        await CloudDataManager.SaveWarehouseLayoutData(currentLayout);
+        activeLayout.SetActiveLayout(currentWarehouseData);
+        await CloudDataManager.SaveWarehouseLayoutData(currentWarehouseData);
         LoadingIcon.Instance.Hide();
     }
 
     public void LoadLayoutData(WarehouseLayoutData layoutData)
     { 
-        currentLayout = layoutData;
+        currentWarehouseData = layoutData;
         RebuildWarehouseUI();
     }
 }

@@ -30,10 +30,10 @@ public class QrCodeGenerator : MonoBehaviour
 
     private void CreateQrTexture()
     {
-        storedEncodedTexture = new Texture2D(256, 256);
+        storedEncodedTexture = new Texture2D(qrSize, qrSize);
     }
 
-    private Color32[] Encode(string textForEncoding, int size)
+    private Color32[] Encode(string textForEncoding)
     {
         var options = new QrCodeEncodingOptions
         {
@@ -63,7 +63,7 @@ public class QrCodeGenerator : MonoBehaviour
     { 
         string textWrite = string.IsNullOrEmpty(inputField.text) ? "You should write something" : inputField.text;
 
-        Color32[] convertPixelToTexture = Encode(textWrite, qrSize);
+        Color32[] convertPixelToTexture = Encode(textWrite);
         storedEncodedTexture.SetPixels32(convertPixelToTexture);
 
         storedEncodedTexture.Apply();

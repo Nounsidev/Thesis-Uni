@@ -27,7 +27,7 @@ public class ShelfRowUI : MonoBehaviour
     {
         isInitializing = false;
         shelfData = data;
-        Debug.Log("Shelf Init");
+        //Debug.Log("Shelf Init");
         // Set input fields to current dimensions without triggering infinite callbacks
 
         rowInputField.text = shelfData.rowCount.ToString();

@@ -16,7 +16,7 @@ public class WarehouseLayoutBase : MonoBehaviour
     [SerializeField] Vector2 shelfOffset;
 
     private float addedSpawnPositionY = 0f;
-    [SerializeField] protected WarehouseLayoutData currentLayout = new WarehouseLayoutData();
+    [SerializeField] protected WarehouseLayoutData currentWarehouseData = new WarehouseLayoutData();
     protected Dictionary<int, ShelfRowUI> activeShelfUIElements = new Dictionary<int, ShelfRowUI>();
 
 
@@ -29,17 +29,17 @@ public class WarehouseLayoutBase : MonoBehaviour
         activeShelfUIElements.Clear();
 
         Vector2 lastSpawnPos = shelfSpawnDefault;
-        foreach (var shelf in currentLayout.customShelves)
+        foreach (var shelf in currentWarehouseData.customShelves)
         {
             lastSpawnPos.y -= shelf.rowCount * shelfRowSpacing;
-            if (shelf != currentLayout.customShelves[^1]) lastSpawnPos.y -= shelfOffset.y;
+            if (shelf != currentWarehouseData.customShelves[^1]) lastSpawnPos.y -= shelfOffset.y;
         }
         lastSpawnPos.y -= addShelfOffset.y;
         DynamicContainer(lastSpawnPos.y);
 
 
         lastSpawnPos = shelfSpawnDefault + new Vector2(0f, addedSpawnPositionY);
-        foreach (var shelf in currentLayout.customShelves)
+        foreach (var shelf in currentWarehouseData.customShelves)
         {
             ShelfRowUI shelfUI = Instantiate(shelfRowPrefab, warehouseScrollViewContent);
             shelfUI.Initialize(shelf, isEdit);
@@ -47,7 +47,7 @@ public class WarehouseLayoutBase : MonoBehaviour
 
             shelfUI.transform.localPosition = lastSpawnPos;
             lastSpawnPos.y -= shelf.rowCount * shelfRowSpacing;
-            if (shelf != currentLayout.customShelves[^1]) lastSpawnPos.y -= shelfOffset.y;
+            if (shelf != currentWarehouseData.customShelves[^1]) lastSpawnPos.y -= shelfOffset.y;
         }
 
         lastSpawnPos.y -= addShelfOffset.y;
